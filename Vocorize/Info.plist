@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>Vocorize</string>
+	<key>CFBundleName</key>
+	<string>Vocorize</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.2.5</string>
+	<key>CFBundleVersion</key>
+	<string>38</string>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>Vocorize needs accessibility access to monitor keyboard events for hotkey detection.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>SUFeedURL</key>
+	<string>https://pub-143ce7e02a2041a9af3c402003f9320e.r2.dev/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApto9O/UEMC9MMBxCeHNSOnbY+DdaMLOaGTsNqHmo8tad1aJpK09OIeHDo6tpmY8UmmSoLnxT1qeFbX2EuwEQud0zdjTk8VBihouWC1jPVtwGLEfKzU4jKAlcZnQXxDo2PZkM6l3CeGALyCgNmaol/ScmI1BGDqiiN9qzKctggxRnHRzdwZoajKjsGkDYSDQrKpUGH49j893BObTX6eQDjajyxDRZJns2N5cmaF1aqq2okuMvUVFqdUw8OXt0ep0jVVcElFsSa3KZbHUhb8aGP9IU9RlReqfHElADyHn6tyFu/Dnp/1hi7C4qCdthSWnIrqbm+29SEDjuBWnH3zQbYQIDAQAB</string>
+</dict>
+</plist>
