@@ -34,16 +34,28 @@ struct AboutView: View {
                         ChangelogView()
                     }
                 }
-                				HStack {
-					Label("Vocorize is open source", systemImage: "apple.terminal.on.rectangle")
+                				                HStack {
+                    Label("Vocorize is open source", systemImage: "apple.terminal.on.rectangle")
                     Spacer()
                     Link("Visit our GitHub", destination: URL(string: "https://github.com/vocorize/app")!)
+                }
+                
+                HStack {
+                    Label("Latest features & updates", systemImage: "tag")
+                    Spacer()
+                    Link("View Latest Releases", destination: URL(string: "https://github.com/vocorize/app/releases")!)
                 }
                 
                 HStack {
                     Label("Support the developer", systemImage: "heart")
                     Spacer()
                     Link("Become a Sponsor", destination: URL(string: "https://github.com/sponsors/tnv1r")!)
+                }
+                
+                HStack {
+                    Label("Get updates & news", systemImage: "person.circle")
+                    Spacer()
+                    Link("Follow me on Twitter", destination: URL(string: "https://x.com/okaytanvir")!)
                 }
             }
         }

@@ -278,6 +278,9 @@
         }
       }
     },
+    "Follow me on Twitter" : {
+
+    },
     "General" : {
       "comment" : "General section in Settings Header.",
       "localizations" : {
@@ -288,6 +291,9 @@
           }
         }
       }
+    },
+    "Get updates & news" : {
+
     },
     "Granted" : {
       "comment" : "Label title for granted permissions.",
@@ -339,6 +345,9 @@
 
     },
     "Last 30 days" : {
+
+    },
+    "Latest features & updates" : {
 
     },
     "Maximum History Entries" : {
@@ -678,6 +687,9 @@
           }
         }
       }
+    },
+    "View Latest Releases" : {
+
     },
     "Visit our GitHub" : {
       "comment" : "button text to link to github",
