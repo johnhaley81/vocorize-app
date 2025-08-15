@@ -2,7 +2,7 @@
 
 **your voice, instantly typed.**
 
-**[download for macos](https://github.com/vocorize/app/releases](https://github.com/vocorize/app/releases/download/beta/Vocorize-v0.2.5.dmg))**
+[**download for macOS**](https://github.com/vocorize/app/releases/download/beta/Vocorize-v0.2.5.dmg)
 
 ## usage modes
 
