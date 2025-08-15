@@ -4,8 +4,20 @@
     "" : {
       "shouldTranslate" : false
     },
+    "%@x Faster" : {
+
+    },
+    "%lld" : {
+
+    },
+    "%llds" : {
+
+    },
     "•" : {
       "shouldTranslate" : false
+    },
+    "30-Day Vocorize Trend" : {
+
     },
     "50" : {
 
@@ -149,6 +161,9 @@
     "Copy transcription text to clipboard in addition to pasting it" : {
 
     },
+    "Daily sessions" : {
+
+    },
     "Delete" : {
 
     },
@@ -285,17 +300,6 @@
         }
       }
     },
-    "Vocorize is open source" : {
-      "comment" : "In about section in settings.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vocorize ist Open Source"
-          }
-        }
-      }
-    },
     "History" : {
       "comment" : "History View Title",
       "localizations" : {
@@ -334,6 +338,9 @@
     "Input Device" : {
 
     },
+    "Last 30 days" : {
+
+    },
     "Maximum History Entries" : {
 
     },
@@ -355,6 +362,9 @@
 
     },
     "Model prewarming..." : {
+
+    },
+    "No data yet" : {
 
     },
     "No models found." : {
@@ -495,6 +505,9 @@
     "Selected: %@" : {
 
     },
+    "Sessions per day" : {
+
+    },
     "Settings" : {
       "comment" : "title for settings view.",
       "localizations" : {
@@ -578,7 +591,16 @@
         }
       }
     },
+    "SPEAKING TIME" : {
+
+    },
     "Speed" : {
+
+    },
+    "Start using Vocorize to see your productivity trends" : {
+
+    },
+    "Stats" : {
 
     },
     "Stop playback" : {
@@ -598,6 +620,9 @@
     "System Default" : {
 
     },
+    "TIME SAVED" : {
+
+    },
     "Transcription history is currently disabled." : {
 
     },
@@ -611,6 +636,9 @@
           }
         }
       }
+    },
+    "TYPING TIME" : {
+
     },
     "Unlimited" : {
 
@@ -662,7 +690,24 @@
         }
       }
     },
+    "Vocorize is open source" : {
+      "comment" : "In about section in settings.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vocorize ist Open Source"
+          }
+        }
+      }
+    },
     "When disabled, transcriptions will not be saved and audio files will be deleted immediately after transcription." : {
+
+    },
+    "with Vocorize" : {
+
+    },
+    "You are" : {
 
     },
     "You're using a full keyboard shortcut. Double-tap is recommended." : {

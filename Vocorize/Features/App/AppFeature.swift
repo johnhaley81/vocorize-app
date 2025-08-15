@@ -14,6 +14,7 @@ struct AppFeature {
   enum ActiveTab: Equatable {
     case settings
     case history
+    case stats
     case about
   }
 
@@ -22,6 +23,7 @@ struct AppFeature {
     var transcription: TranscriptionFeature.State = .init()
     var settings: SettingsFeature.State = .init()
     var history: HistoryFeature.State = .init()
+    var stats: StatsFeature.State = .init()
     var activeTab: ActiveTab = .settings
   }
 
@@ -30,6 +32,7 @@ struct AppFeature {
     case transcription(TranscriptionFeature.Action)
     case settings(SettingsFeature.Action)
     case history(HistoryFeature.Action)
+    case stats(StatsFeature.Action)
     case setActiveTab(ActiveTab)
   }
 
@@ -48,6 +51,10 @@ struct AppFeature {
       HistoryFeature()
     }
 
+    Scope(state: \.stats, action: \.stats) {
+      StatsFeature()
+    }
+
     Reduce { state, action in
       switch action {
       case .binding:
@@ -60,6 +67,8 @@ struct AppFeature {
         state.activeTab = .settings
         return .none
       case .history:
+        return .none
+      case .stats:
         return .none
       case let .setActiveTab(tab):
         state.activeTab = tab
@@ -91,6 +100,13 @@ struct AppView: View {
           .tag(AppFeature.ActiveTab.history)
           
         Button {
+          store.send(.setActiveTab(.stats))
+        } label: {
+          Label("Stats", systemImage: "chart.bar")
+        }.buttonStyle(.plain)
+          .tag(AppFeature.ActiveTab.stats)
+          
+        Button {
           store.send(.setActiveTab(.about))
         } label: {
           Label("About", systemImage: "info.circle")
@@ -105,6 +121,9 @@ struct AppView: View {
       case .history:
         HistoryView(store: store.scope(state: \.history, action: \.history))
           .navigationTitle("History")
+      case .stats:
+        StatsView(store: store.scope(state: \.stats, action: \.stats))
+          .navigationTitle("Stats")
       case .about:
         AboutView(store: store.scope(state: \.settings, action: \.settings))
           .navigationTitle("About")
