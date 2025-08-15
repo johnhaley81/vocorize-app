@@ -1,14 +1,8 @@
-### 1.4
-- Bump version for stable release
-
-### 0.1.33
-- Add copy to clipboard option
-- Add support for complete keyboard shortcuts
-- Fix issue with Vocorize showing in Mission Control and Cmd+Tab
-- Add indication for model prewarming
-- Improve paste behavior when text input fails
-- Rework audio pausing logic to make it more reliable
-
-### 0.1.26
-- Add changelog
-- Add option to set minimum record time
+### 0.2.5
+- Initial release with core transcription functionality
+- Support for multiple languages and models
+- Hotkey-based recording controls
+- Copy to clipboard functionality
+- Settings panel for customization
+- Audio feedback for recording states
+- History tracking of transcriptions
