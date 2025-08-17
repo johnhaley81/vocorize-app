@@ -11,20 +11,15 @@ import Foundation
 /// Factory responsible for managing transcription providers and routing model names to the correct provider
 public actor TranscriptionProviderFactory {
     
-    // MARK: - Singleton
-    
-    /// Shared singleton instance
-    public static let shared = TranscriptionProviderFactory()
-    
-    // MARK: - Private Properties
+    // MARK: - Properties
     
     /// Registry of providers by type
     private var providers: [TranscriptionProviderType: any TranscriptionProvider] = [:]
     
     // MARK: - Initialization
     
-    private init() {
-        // Private initializer for singleton pattern
+    public init() {
+        // Public initializer for dependency injection
     }
     
     // MARK: - Provider Registration

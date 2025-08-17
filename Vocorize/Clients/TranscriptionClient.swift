@@ -37,7 +37,8 @@ struct TranscriptionClient {
 
 extension TranscriptionClient: DependencyKey {
   static var liveValue: Self {
-    let live = TranscriptionClientLive()
+    let factory = TranscriptionProviderFactory()
+    let live = TranscriptionClientLive(factory: factory)
     return Self(
       transcribe: { try await live.transcribe(url: $0, model: $1, options: $2, progressCallback: $3) },
       downloadModel: { try await live.downloadModel(variant: $0, progressCallback: $1) },
@@ -61,12 +62,16 @@ actor TranscriptionClientLive {
   // MARK: - Stored Properties
 
   /// Factory for managing transcription providers
-  private let factory = TranscriptionProviderFactory.shared
+  private let factory: TranscriptionProviderFactory
   
   /// Initialization flag to ensure providers are registered
   private var isInitialized = false
 
   // MARK: - Initialization
+  
+  init(factory: TranscriptionProviderFactory) {
+    self.factory = factory
+  }
   
   private func ensureInitialized() async {
     guard !isInitialized else { return }
@@ -189,7 +194,6 @@ actor TranscriptionClientLive {
         }
       } catch {
         // Ignore providers that fail - graceful degradation
-        print("[TranscriptionClientLive] Warning: Failed to get models from provider \(providerType): \(error)")
       }
     }
     
@@ -211,9 +215,6 @@ actor TranscriptionClientLive {
     progressCallback: @escaping (Progress) -> Void
   ) async throws -> String {
     await ensureInitialized()
-    
-    print("[DEBUG] TranscriptionClient: Starting transcription with model: \(model)")
-    print("[DEBUG] TranscriptionClient: Audio URL: \(url)")
     
     let (providerModelName, provider) = try await resolveModelAndProvider(model)
     
