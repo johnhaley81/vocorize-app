@@ -51,7 +51,12 @@ actor WhisperKitProvider: TranscriptionProvider {
             try FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true)
             return baseURL
         } catch {
-            fatalError("Could not create Application Support folder: \(error)")
+            // Fallback to temporary directory if Application Support is unavailable
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("com.tanvir.Vocorize", isDirectory: true)
+                .appendingPathComponent("models", isDirectory: true)
+            try? FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
+            return tempURL
         }
     }()
     
@@ -69,9 +74,6 @@ actor WhisperKitProvider: TranscriptionProvider {
         options: DecodingOptions,
         progressCallback: @escaping (Progress) -> Void
     ) async throws -> String {
-        print("[DEBUG] WhisperKitProvider: Starting transcription with model: \(modelName)")
-        print("[DEBUG] WhisperKitProvider: Audio URL: \(audioURL)")
-        print("[DEBUG] WhisperKitProvider: Current model: \(currentModelName ?? "none")")
         
         // Check if the requested model is currently loaded
         guard let whisperKit = whisperKit, currentModelName == modelName else {
@@ -131,7 +133,6 @@ actor WhisperKitProvider: TranscriptionProvider {
         do {
             // Delete the model directory
             try FileManager.default.removeItem(at: modelFolder)
-            print("[WhisperKitProvider] Deleted model: \(modelName)")
         } catch {
             throw TranscriptionProviderError.modelNotFound("Failed to delete model \(modelName): \(error.localizedDescription)")
         }
@@ -274,7 +275,6 @@ actor WhisperKitProvider: TranscriptionProvider {
         overallProgress.completedUnitCount = 0
         progressCallback(overallProgress)
         
-        print("[WhisperKitProvider] Processing model: \(variant)")
 
         // 1) Model download phase (0-50% progress)
         if !(await isModelDownloaded(variant)) {
@@ -351,7 +351,6 @@ actor WhisperKitProvider: TranscriptionProvider {
         initialProgress.completedUnitCount = 0
         progressCallback(initialProgress)
 
-        print("[WhisperKitProvider] Downloading model: \(variant)")
 
         // Create parent directories
         let parentDir = modelFolder.deletingLastPathComponent()
@@ -381,7 +380,6 @@ actor WhisperKitProvider: TranscriptionProvider {
             finalProgress.completedUnitCount = 100
             progressCallback(finalProgress)
             
-            print("[WhisperKitProvider] Downloaded model to: \(modelFolder.path)")
         } catch {
             // Clean up any partial download if an error occurred
             if FileManager.default.fileExists(atPath: modelFolder.path) {
@@ -395,7 +393,6 @@ actor WhisperKitProvider: TranscriptionProvider {
             }
             
             // Rethrow as download failed for other errors
-            print("[WhisperKitProvider] Error downloading model: \(error.localizedDescription)")
             throw TranscriptionProviderError.modelDownloadFailed(variant, error)
         }
     }
@@ -430,7 +427,6 @@ actor WhisperKitProvider: TranscriptionProvider {
             loadingProgress.completedUnitCount = 100
             progressCallback(loadingProgress)
 
-            print("[WhisperKitProvider] Loaded WhisperKit model: \(modelName)")
         } catch {
             throw TranscriptionProviderError.modelLoadFailed(modelName, error)
         }
@@ -541,19 +537,28 @@ actor WhisperKitProvider: TranscriptionProvider {
     
     // MARK: - Private Helper Methods
     
-    /// Formats a model name into a user-friendly display name
-    /// - Parameter modelName: The raw model name to format
-    /// - Returns: A sanitized, user-friendly display name
-    private func formatDisplayName(for modelName: String) -> String {
-        // Input validation: ensure the model name is safe to process
+    /// Validates a model name to prevent path traversal and other security issues
+    /// - Parameter modelName: The model name to validate
+    /// - Returns: true if the model name is safe, false otherwise
+    private func validateModelName(_ modelName: String) -> Bool {
         guard !modelName.isEmpty,
               modelName.count <= 200, // Reasonable length limit
-              !modelName.contains(".."), // Prevent path traversal patterns
+              !modelName.contains(".."), // Prevent path traversal
               !modelName.contains("/"), // Prevent file system paths
               !modelName.contains("\\"), // Prevent Windows paths
               !modelName.hasPrefix("."), // Prevent hidden file patterns
               modelName.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" || $0 == "." }) else {
-            // Return a safe fallback for invalid input
+            return false
+        }
+        return true
+    }
+    
+    /// Formats a model name into a user-friendly display name
+    /// - Parameter modelName: The raw model name to format
+    /// - Returns: A sanitized, user-friendly display name
+    private func formatDisplayName(for modelName: String) -> String {
+        // Input validation to prevent malicious input
+        guard validateModelName(modelName) else {
             return "Unknown Model"
         }
         
