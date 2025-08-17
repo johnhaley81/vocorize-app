@@ -205,9 +205,8 @@ extension HotKeyProcessor {
         if hotkey.key != nil {
             return e.key == hotkey.key && e.modifiers == hotkey.modifiers
         } else {
-            // For modifier-only hotkeys, we just check that all required modifiers are present
-            // This allows other modifiers to be pressed without affecting the match
-            return hotkey.modifiers.isSubset(of: e.modifiers)
+            // For modifier-only hotkeys, modifiers must match exactly
+            return e.modifiers == hotkey.modifiers
         }
     }
 
@@ -215,7 +214,9 @@ extension HotKeyProcessor {
     private func chordIsDirty(_ e: KeyEvent) -> Bool {
         let isSubset = e.modifiers.isSubset(of: hotkey.modifiers)
         let isWrongKey = (hotkey.key != nil && e.key != nil && e.key != hotkey.key)
-        return !isSubset || isWrongKey
+        // For modifier-only hotkeys, any key press should be considered dirty
+        let hasKeyWithModifierOnlyHotkey = (hotkey.key == nil && e.key != nil)
+        return !isSubset || isWrongKey || hasKeyWithModifierOnlyHotkey
     }
 
     private func chordIsFullyReleased(_ e: KeyEvent) -> Bool {
