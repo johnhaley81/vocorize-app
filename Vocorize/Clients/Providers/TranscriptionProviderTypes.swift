@@ -95,3 +95,39 @@ public enum TranscriptionProviderError: LocalizedError, Equatable {
         }
     }
 }
+
+/// Error types specific to TranscriptionProviderFactory operations
+public enum TranscriptionProviderFactoryError: LocalizedError, Equatable {
+    case modelNotSupported(String)
+    case providerNotRegistered(TranscriptionProviderType)
+    case invalidModelName(String)
+    case factoryNotInitialized
+    
+    public var errorDescription: String? {
+        switch self {
+        case .modelNotSupported(let model):
+            return "Model '\(model)' is not supported by any registered provider"
+        case .providerNotRegistered(let type):
+            return "Provider '\(type.displayName)' is not registered with the factory"
+        case .invalidModelName(let model):
+            return "Invalid model name: '\(model)'"
+        case .factoryNotInitialized:
+            return "TranscriptionProviderFactory has not been properly initialized"
+        }
+    }
+    
+    public static func == (lhs: TranscriptionProviderFactoryError, rhs: TranscriptionProviderFactoryError) -> Bool {
+        switch (lhs, rhs) {
+        case (.modelNotSupported(let lModel), .modelNotSupported(let rModel)):
+            return lModel == rModel
+        case (.providerNotRegistered(let lType), .providerNotRegistered(let rType)):
+            return lType == rType
+        case (.invalidModelName(let lModel), .invalidModelName(let rModel)):
+            return lModel == rModel
+        case (.factoryNotInitialized, .factoryNotInitialized):
+            return true
+        default:
+            return false
+        }
+    }
+}
