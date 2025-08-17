@@ -13,7 +13,10 @@ Vocorize is a macOS menu bar application that provides AI-powered voice-to-text 
 xcodebuild -scheme Vocorize -configuration Release
 
 # Run tests
-xcodebuild test -scheme Vocorize
+xcodebuild test -scheme Vocorize -destination 'platform=macOS,arch=arm64'
+
+# Run tests with convenient script
+./test.sh
 
 # Open in Xcode (recommended for development)
 open Vocorize.xcodeproj

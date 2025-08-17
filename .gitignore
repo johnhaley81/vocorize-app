@@ -14,3 +14,9 @@ ExportOptions.plist
 .env
 
 /commits.sh
+
+# Log files
+*.log
+
+# Test results
+*.xcresult
