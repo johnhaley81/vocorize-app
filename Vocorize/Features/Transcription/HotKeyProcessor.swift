@@ -59,9 +59,6 @@ public struct HotKeyProcessor {
 
     public mutating func process(keyEvent: KeyEvent) -> Output? {
         // 1) ESC => immediate cancel
-        if keyEvent.key == .escape {
-            print("ESCAPE HIT IN STATE: \(state)")
-        }
         if keyEvent.key == .escape, state != .idle {
             resetToIdle()
             return .cancel
