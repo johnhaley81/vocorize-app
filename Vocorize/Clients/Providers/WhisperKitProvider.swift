@@ -8,6 +8,7 @@
 import Foundation
 import AVFoundation
 import WhisperKit
+import Dependencies
 
 /// WhisperKit provider implementation that wraps the existing TranscriptionClientLive
 /// This maintains complete backward compatibility with the existing WhisperKit implementation
@@ -21,12 +22,13 @@ actor WhisperKitProvider: TranscriptionProvider {
     // MARK: - Private Properties
     
     /// The underlying WhisperKit implementation
-    private let transcriptionClient: TranscriptionClientLive
+    private let transcriptionClient: TranscriptionClient
     
     // MARK: - Initialization
     
-    init() {
-        self.transcriptionClient = TranscriptionClientLive()
+    init(transcriptionClient: TranscriptionClient? = nil) {
+        // Use injected client or default to live implementation
+        self.transcriptionClient = transcriptionClient ?? TranscriptionClient.liveValue
     }
     
     // MARK: - TranscriptionProvider Implementation
@@ -38,10 +40,10 @@ actor WhisperKitProvider: TranscriptionProvider {
         progressCallback: @escaping (Progress) -> Void
     ) async throws -> String {
         return try await transcriptionClient.transcribe(
-            url: audioURL,
-            model: modelName,
-            options: options,
-            progressCallback: progressCallback
+            audioURL,
+            modelName,
+            options,
+            progressCallback
         )
     }
     
@@ -49,14 +51,14 @@ actor WhisperKitProvider: TranscriptionProvider {
         _ modelName: String,
         progressCallback: @escaping (Progress) -> Void
     ) async throws -> Void {
-        try await transcriptionClient.downloadAndLoadModel(
-            variant: modelName,
-            progressCallback: progressCallback
+        try await transcriptionClient.downloadModel(
+            modelName,
+            progressCallback
         )
     }
     
     func deleteModel(_ modelName: String) async throws -> Void {
-        try await transcriptionClient.deleteModel(variant: modelName)
+        try await transcriptionClient.deleteModel(modelName)
     }
     
     func isModelDownloaded(_ modelName: String) async -> Bool {
@@ -66,7 +68,7 @@ actor WhisperKitProvider: TranscriptionProvider {
     func getAvailableModels() async throws -> [ProviderModelInfo] {
         // Get the available models from WhisperKit
         let availableModelNames = try await transcriptionClient.getAvailableModels()
-        let recommendedModels = await transcriptionClient.getRecommendedModels()
+        let recommendedModels = try await transcriptionClient.getRecommendedModels()
         
         // Create ProviderModelInfo objects for each model
         var providerModels: [ProviderModelInfo] = []
@@ -116,7 +118,7 @@ actor WhisperKitProvider: TranscriptionProvider {
     }
     
     func getRecommendedModel() async throws -> String {
-        let recommendedModels = await transcriptionClient.getRecommendedModels()
+        let recommendedModels = try await transcriptionClient.getRecommendedModels()
         
         // Return the default model first
         let defaultModel = recommendedModels.default
@@ -155,13 +157,31 @@ actor WhisperKitProvider: TranscriptionProvider {
     // MARK: - Private Helper Methods
     
     /// Formats a model name into a user-friendly display name
+    /// - Parameter modelName: The raw model name to format
+    /// - Returns: A sanitized, user-friendly display name
     private func formatDisplayName(for modelName: String) -> String {
+        // Input validation: ensure the model name is safe to process
+        guard !modelName.isEmpty,
+              modelName.count <= 200, // Reasonable length limit
+              !modelName.contains(".."), // Prevent path traversal patterns
+              !modelName.contains("/"), // Prevent file system paths
+              !modelName.contains("\\"), // Prevent Windows paths
+              !modelName.hasPrefix("."), // Prevent hidden file patterns
+              modelName.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" || $0 == "." }) else {
+            // Return a safe fallback for invalid input
+            return "Unknown Model"
+        }
+        
         // Handle common WhisperKit model naming patterns
         var displayName = modelName
         
-        // Remove common prefixes
-        displayName = displayName.replacingOccurrences(of: "openai_whisper-", with: "")
-        displayName = displayName.replacingOccurrences(of: "whisper-", with: "")
+        // Remove common prefixes (using safer, more specific replacements)
+        if displayName.hasPrefix("openai_whisper-") {
+            displayName = String(displayName.dropFirst("openai_whisper-".count))
+        }
+        if displayName.hasPrefix("whisper-") {
+            displayName = String(displayName.dropFirst("whisper-".count))
+        }
         
         // Capitalize and add spaces
         displayName = displayName.replacingOccurrences(of: "_", with: " ")
@@ -175,7 +195,9 @@ actor WhisperKitProvider: TranscriptionProvider {
             displayName = displayName.replacingOccurrences(of: "Turbo", with: "Turbo")
         }
         
-        return displayName
+        // Final sanitization: ensure the result is still safe
+        let sanitized = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return sanitized.isEmpty ? "Unknown Model" : sanitized
     }
     
     /// Estimates model size based on model name patterns
