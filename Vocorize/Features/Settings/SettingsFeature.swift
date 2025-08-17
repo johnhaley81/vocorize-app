@@ -93,8 +93,6 @@ struct SettingsFeature {
           let languages = try? JSONDecoder().decode([Language].self, from: data)
         {
           state.languages = IdentifiedArray(uniqueElements: languages)
-        } else {
-          print("Failed to load languages")
         }
 
         // Listen for key events and load microphones (existing + new)

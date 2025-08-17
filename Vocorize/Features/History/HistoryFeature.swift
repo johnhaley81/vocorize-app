@@ -115,7 +115,6 @@ struct HistoryFeature {
 						}
 					}
 				} catch {
-					print("Error playing audio: \(error)")
 					return .none
 				}
 

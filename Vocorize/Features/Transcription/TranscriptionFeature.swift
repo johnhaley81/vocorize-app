@@ -69,7 +69,6 @@ struct TranscriptionFeature {
         // Starts two concurrent effects:
         // 1) Observing audio meter
         // 2) Monitoring hot key events
-        print("[DEBUG] TranscriptionFeature: Starting task - initializing metering and hotkey monitoring")
         return .merge(
           startMeteringEffect(),
           startHotKeyMonitoringEffect()
@@ -86,7 +85,6 @@ struct TranscriptionFeature {
       case .hotKeyPressed:
         // If we're transcribing, send a cancel first. Then queue up a
         // "startRecording" in 200ms if the user keeps holding the hotkey.
-        print("[DEBUG] TranscriptionFeature: Hotkey pressed, isTranscribing: \(state.isTranscribing)")
         return handleHotKeyPressed(isTranscribing: state.isTranscribing)
 
       case .hotKeyReleased:
@@ -97,11 +95,9 @@ struct TranscriptionFeature {
       // MARK: - Recording Flow
 
       case .startRecording:
-        print("[DEBUG] TranscriptionFeature: Starting recording")
         return handleStartRecording(&state)
 
       case .stopRecording:
-        print("[DEBUG] TranscriptionFeature: Stopping recording")
         return handleStopRecording(&state)
 
       // MARK: - Transcription Results
@@ -147,11 +143,9 @@ private extension TranscriptionFeature {
 
       // Handle incoming key events
       keyEventMonitor.handleKeyEvent { keyEvent in
-        print("[DEBUG] HotKeyProcessor: Received key event - key: \(keyEvent.key?.rawValue ?? "nil"), modifiers: \(keyEvent.modifiers)")
         
         // Skip if the user is currently setting a hotkey
         if isSettingHotKey {
-          print("[DEBUG] HotKeyProcessor: Skipping event - user is setting hotkey")
           return false
         }
 
@@ -266,7 +260,6 @@ private extension TranscriptionFeature {
       guard (durationIsLongEnough && state.vocorizeSettings.hotkey.key == nil) else {
       // If the user recorded for less than minimumKeyTime, just discard
       // unless the hotkey includes a regular key, in which case, we can assume it was intentional
-      print("Recording was too short, discarding")
       return .run { _ in
         _ = await recording.stopRecording()
       }
@@ -294,10 +287,8 @@ private extension TranscriptionFeature {
         
         let result = try await transcription.transcribe(audioURL, model, decodeOptions) { _ in }
         
-        print("Transcribed audio from URL: \(audioURL) to text: \(result)")
         await send(.transcriptionResult(result))
       } catch {
-        print("Error transcribing audio: \(error)")
         await send(.transcriptionError(error))
       }
     }
