@@ -40,7 +40,7 @@ extension TranscriptionClient: DependencyKey {
     let live = TranscriptionClientLive()
     return Self(
       transcribe: { try await live.transcribe(url: $0, model: $1, options: $2, progressCallback: $3) },
-      downloadModel: { try await live.downloadAndLoadModel(variant: $0, progressCallback: $1) },
+      downloadModel: { try await live.downloadModel(variant: $0, progressCallback: $1) },
       deleteModel: { try await live.deleteModel(variant: $0) },
       isModelDownloaded: { await live.isModelDownloaded($0) },
       getRecommendedModels: { await live.getRecommendedModels() },
@@ -56,312 +56,221 @@ extension DependencyValues {
   }
 }
 
-/// An `actor` that manages WhisperKit models by downloading (from Hugging Face),
-//  loading them into memory, and then performing transcriptions.
-
+/// An `actor` that routes transcription operations to appropriate providers using TranscriptionProviderFactory
 actor TranscriptionClientLive {
   // MARK: - Stored Properties
 
-  /// The current in-memory `WhisperKit` instance, if any.
-  private var whisperKit: WhisperKit?
+  /// Factory for managing transcription providers
+  private let factory = TranscriptionProviderFactory.shared
+  
+  /// Initialization flag to ensure providers are registered
+  private var isInitialized = false
 
-  /// The name of the currently loaded model, if any.
-  private var currentModelName: String?
-
-  /// The base folder under which we store model data (e.g., ~/Library/Application Support/...).
-  private lazy var modelsBaseFolder: URL = {
-    do {
-      let appSupportURL = try FileManager.default.url(
-        for: .applicationSupportDirectory,
-        in: .userDomainMask,
-        appropriateFor: nil,
-        create: true
-      )
-      		// Typically: .../Application Support/com.tanvir.Vocorize
-			let ourAppFolder = appSupportURL.appendingPathComponent("com.tanvir.Vocorize", isDirectory: true)
-      // Inside there, store everything in /models
-      let baseURL = ourAppFolder.appendingPathComponent("models", isDirectory: true)
-      try FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true)
-      return baseURL
-    } catch {
-      fatalError("Could not create Application Support folder: \(error)")
-    }
-  }()
-
+  // MARK: - Initialization
+  
+  private func ensureInitialized() async {
+    guard !isInitialized else { return }
+    
+    // Register WhisperKit provider
+    let whisperKitProvider = WhisperKitProvider()
+    await factory.registerProvider(whisperKitProvider, for: .whisperKit)
+    
+    // Note: MLX provider would be registered here when available
+    // let mlxProvider = MLXProvider()
+    // await factory.registerProvider(mlxProvider, for: .mlx)
+    
+    isInitialized = true
+  }
+  
   // MARK: - Public Methods
 
-  /// Ensures the given `variant` model is downloaded and loaded, reporting
-  /// overall progress (0%–50% for downloading, 50%–100% for loading).
-  func downloadAndLoadModel(variant: String, progressCallback: @escaping (Progress) -> Void) async throws {
-    // Special handling for corrupted or malformed variant names
-    if variant.isEmpty {
-      throw NSError(
-        domain: "TranscriptionClient",
-        code: -3,
-        userInfo: [
-          NSLocalizedDescriptionKey: "Cannot download model: Empty model name"
-        ]
-      )
-    }
+  /// Downloads and loads a model, routing to the appropriate provider
+  func downloadModel(variant: String, progressCallback: @escaping (Progress) -> Void) async throws {
+    await ensureInitialized()
     
-    let overallProgress = Progress(totalUnitCount: 100)
-    overallProgress.completedUnitCount = 0
-    progressCallback(overallProgress)
+    let (providerModelName, provider) = try await resolveModelAndProvider(variant)
     
-    print("[TranscriptionClientLive] Processing model: \(variant)")
-
-    // 1) Model download phase (0-50% progress)
-    if !(await isModelDownloaded(variant)) {
-      try await downloadModelIfNeeded(variant: variant) { downloadProgress in
-        let fraction = downloadProgress.fractionCompleted * 0.5
-        overallProgress.completedUnitCount = Int64(fraction * 100)
-        progressCallback(overallProgress)
-      }
-    } else {
-      // Skip download phase if already downloaded
-      overallProgress.completedUnitCount = 50
-      progressCallback(overallProgress)
-    }
-
-    // 2) Model loading phase (50-100% progress)
-    try await loadWhisperKitModel(variant) { loadingProgress in
-      let fraction = 0.5 + (loadingProgress.fractionCompleted * 0.5)
-      overallProgress.completedUnitCount = Int64(fraction * 100)
-      progressCallback(overallProgress)
-    }
-    
-    // Final progress update
-    overallProgress.completedUnitCount = 100
-    progressCallback(overallProgress)
+    try await provider.downloadModel(providerModelName, progressCallback: progressCallback)
   }
 
   /// Deletes a model from disk if it exists
   func deleteModel(variant: String) async throws {
-    let modelFolder = modelPath(for: variant)
+    await ensureInitialized()
     
-    // Check if the model exists
-    guard FileManager.default.fileExists(atPath: modelFolder.path) else {
-      // Model doesn't exist, nothing to delete
-      return
-    }
+    let (providerModelName, provider) = try await resolveModelAndProvider(variant)
     
-    // If this is the currently loaded model, unload it first
-    if currentModelName == variant {
-      unloadCurrentModel()
-    }
-    
-    // Delete the model directory
-    try FileManager.default.removeItem(at: modelFolder)
-    
-    print("[TranscriptionClientLive] Deleted model: \(variant)")
+    try await provider.deleteModel(providerModelName)
   }
 
   /// Returns `true` if the model is already downloaded to the local folder.
-  /// Performs a thorough check to ensure the model files are actually present and usable.
   func isModelDownloaded(_ modelName: String) async -> Bool {
-    let modelFolderPath = modelPath(for: modelName).path
-    let fileManager = FileManager.default
-    
-    // First, check if the basic model directory exists
-    guard fileManager.fileExists(atPath: modelFolderPath) else {
-      // Don't print logs that would spam the console
-      return false
-    }
+    await ensureInitialized()
     
     do {
-      // Check if the directory has actual model files in it
-      let contents = try fileManager.contentsOfDirectory(atPath: modelFolderPath)
-      
-      // Model should have multiple files and certain key components
-      guard !contents.isEmpty else {
-        return false
-      }
-      
-      // Check for specific model structure - need both tokenizer and model files
-      let hasModelFiles = contents.contains { $0.hasSuffix(".mlmodelc") || $0.contains("model") }
-      let tokenizerFolderPath = tokenizerPath(for: modelName).path
-      let hasTokenizer = fileManager.fileExists(atPath: tokenizerFolderPath)
-      
-      // Both conditions must be true for a model to be considered downloaded
-      return hasModelFiles && hasTokenizer
+      let (providerModelName, provider) = try await resolveModelAndProvider(modelName)
+      return await provider.isModelDownloaded(providerModelName)
     } catch {
+      // If we can't resolve the model/provider, it's not downloaded
       return false
     }
   }
 
   /// Returns a list of recommended models based on current device hardware.
   func getRecommendedModels() async -> ModelSupport {
-    await WhisperKit.recommendedRemoteModels()
+    await ensureInitialized()
+    
+    // Get recommendations from all available providers
+    var allSupported: [String] = []
+    var recommended = "tiny" // Default fallback
+    
+    // Try to get WhisperKit recommendations first (primary provider)
+    if await factory.isProviderRegistered(.whisperKit) {
+      do {
+        if let provider = await getProviderByType(.whisperKit) {
+          let whisperRecommendations = await WhisperKit.recommendedRemoteModels()
+          // Add WhisperKit models with provider prefix
+          allSupported.append(contentsOf: whisperRecommendations.supported.map { "whisperkit:\($0)" })
+          recommended = "whisperkit:\(whisperRecommendations.default)"
+        }
+      } catch {
+        // Silently fall back to legacy behavior
+      }
+    }
+    
+    // Add models from other providers if available
+    for providerType in await factory.getAllRegisteredProviderTypes() {
+      if providerType != .whisperKit, let provider = await getProviderByType(providerType) {
+        do {
+          let models = try await provider.getAvailableModels()
+          allSupported.append(contentsOf: models.map { "\(providerType.rawValue):\($0.internalName)" })
+        } catch {
+          // Ignore providers that fail to provide models
+        }
+      }
+    }
+    
+    // If no provider-specific models found, fall back to legacy WhisperKit behavior
+    if allSupported.isEmpty {
+      let legacyRecommendations = await WhisperKit.recommendedRemoteModels()
+      return ModelSupport(
+        default: legacyRecommendations.default,
+        supported: legacyRecommendations.supported,
+        disabled: legacyRecommendations.disabled
+      )
+    }
+    
+    return ModelSupport(
+      default: recommended,
+      supported: allSupported,
+      disabled: []
+    )
   }
 
-  /// Lists all model variants available in the `argmaxinc/whisperkit-coreml` repository.
+  /// Lists all model variants available from all registered providers.
   func getAvailableModels() async throws -> [String] {
-    try await WhisperKit.fetchAvailableModels()
+    await ensureInitialized()
+    
+    var allModels: [String] = []
+    
+    // Collect models from all registered providers
+    for providerType in await factory.getAllRegisteredProviderTypes() {
+      do {
+        // Get provider directly by type
+        if let provider = await getProviderByType(providerType) {
+          let providerModels = try await provider.getAvailableModels()
+          // Add models with provider prefix for non-WhisperKit providers
+          if providerType == .whisperKit {
+            // For WhisperKit, provide both legacy format and prefixed format for compatibility
+            allModels.append(contentsOf: providerModels.map { $0.internalName })
+            allModels.append(contentsOf: providerModels.map { "whisperkit:\($0.internalName)" })
+          } else {
+            allModels.append(contentsOf: providerModels.map { "\(providerType.rawValue):\($0.internalName)" })
+          }
+        }
+      } catch {
+        // Ignore providers that fail - graceful degradation
+        print("[TranscriptionClientLive] Warning: Failed to get models from provider \(providerType): \(error)")
+      }
+    }
+    
+    // If no providers are available, fall back to legacy WhisperKit behavior
+    if allModels.isEmpty {
+      return try await WhisperKit.fetchAvailableModels()
+    }
+    
+    // Remove duplicates and sort
+    return Array(Set(allModels)).sorted()
   }
 
   /// Transcribes the audio file at `url` using a `model` name.
-  /// If the model is not yet loaded (or if it differs from the current model), it is downloaded and loaded first.
-  /// Transcription progress can be monitored via `progressCallback`.
+  /// The model is routed to the appropriate provider and downloaded/loaded if needed.
   func transcribe(
     url: URL,
     model: String,
     options: DecodingOptions,
     progressCallback: @escaping (Progress) -> Void
   ) async throws -> String {
+    await ensureInitialized()
+    
     print("[DEBUG] TranscriptionClient: Starting transcription with model: \(model)")
     print("[DEBUG] TranscriptionClient: Audio URL: \(url)")
-    print("[DEBUG] TranscriptionClient: Current model: \(currentModelName ?? "none")")
     
-    // Load or switch to the required model if needed.
-    if whisperKit == nil || model != currentModelName {
-      unloadCurrentModel()
-      try await downloadAndLoadModel(variant: model) { p in
-        // Debug logging, or scale as desired:
-        progressCallback(p)
-      }
-    }
-
-    guard let whisperKit = whisperKit else {
-      throw NSError(
-        domain: "TranscriptionClient",
-        code: -1,
-        userInfo: [
-          NSLocalizedDescriptionKey: "Failed to initialize WhisperKit for model: \(model)",
-        ]
-      )
-    }
-
-    // Perform the transcription.
-    let results = try await whisperKit.transcribe(audioPath: url.path, decodeOptions: options)
-
-    // Concatenate results from all segments.
-    let text = results.map(\.text).joined(separator: " ")
-    return text
+    let (providerModelName, provider) = try await resolveModelAndProvider(model)
+    
+    return try await provider.transcribe(
+      audioURL: url,
+      modelName: providerModelName,
+      options: options,
+      progressCallback: progressCallback
+    )
   }
 
   // MARK: - Private Helpers
-
-  /// Creates or returns the local folder (on disk) for a given `variant` model.
-  private func modelPath(for variant: String) -> URL {
-    // Remove any possible path traversal or invalid characters from variant name
-    let sanitizedVariant = variant.components(separatedBy: CharacterSet(charactersIn: "./\\")).joined(separator: "_")
-    
-    return modelsBaseFolder
-      .appendingPathComponent("argmaxinc")
-      .appendingPathComponent("whisperkit-coreml")
-      .appendingPathComponent(sanitizedVariant, isDirectory: true)
-  }
-
-  /// Creates or returns the local folder for the tokenizer files of a given `variant`.
-  private func tokenizerPath(for variant: String) -> URL {
-    modelPath(for: variant).appendingPathComponent("tokenizer", isDirectory: true)
-  }
-
-  // Unloads any currently loaded model (clears `whisperKit` and `currentModelName`).
-  private func unloadCurrentModel() {
-    whisperKit = nil
-    currentModelName = nil
-  }
-
-  /// Downloads the model to a temporary folder (if it isn't already on disk),
-  /// then moves it into its final folder in `modelsBaseFolder`.
-  private func downloadModelIfNeeded(
-    variant: String,
-    progressCallback: @escaping (Progress) -> Void
-  ) async throws {
-    let modelFolder = modelPath(for: variant)
-    
-    // If the model folder exists but isn't a complete model, clean it up
-    let isDownloaded = await isModelDownloaded(variant)
-    if FileManager.default.fileExists(atPath: modelFolder.path) && !isDownloaded {
-      try FileManager.default.removeItem(at: modelFolder)
-    }
-    
-    // If model is already fully downloaded, we're done
-    if isDownloaded {
-      return
-    }
-
-    print("[TranscriptionClientLive] Downloading model: \(variant)")
-
-    // Create parent directories
-    let parentDir = modelFolder.deletingLastPathComponent()
-    try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
-    
-    do {
-      // Download directly using the exact variant name provided
-      let tempFolder = try await WhisperKit.download(
-        variant: variant,
-        downloadBase: nil,
-        useBackgroundSession: false,
-        from: "argmaxinc/whisperkit-coreml",
-        token: nil,
-        progressCallback: { progress in
-          progressCallback(progress)
-        }
-      )
-      
-      // Ensure target folder exists
-      try FileManager.default.createDirectory(at: modelFolder, withIntermediateDirectories: true)
-      
-      // Move the downloaded snapshot to the final location
-      try moveContents(of: tempFolder, to: modelFolder)
-      
-      print("[TranscriptionClientLive] Downloaded model to: \(modelFolder.path)")
-    } catch {
-      // Clean up any partial download if an error occurred
-      if FileManager.default.fileExists(atPath: modelFolder.path) {
-        try? FileManager.default.removeItem(at: modelFolder)
+  
+  /// Resolves a model name to the appropriate provider and internal model name
+  /// Supports both provider-prefixed formats (e.g., "whisperkit:tiny") and legacy formats (e.g., "tiny")
+  private func resolveModelAndProvider(_ modelName: String) async throws -> (String, any TranscriptionProvider) {
+    // Check if model name contains provider prefix
+    if modelName.contains(":") {
+      let components = modelName.split(separator: ":", maxSplits: 1)
+      guard components.count == 2 else {
+        throw TranscriptionProviderFactoryError.invalidModelName(modelName)
       }
       
-      // Rethrow the original error
-      print("[TranscriptionClientLive] Error downloading model: \(error.localizedDescription)")
-      throw error
+      let providerString = String(components[0])
+      let internalModelName = String(components[1])
+      
+      guard let providerType = TranscriptionProviderType(rawValue: providerString) else {
+        throw TranscriptionProviderFactoryError.invalidModelName(modelName)
+      }
+      
+      guard await factory.isProviderRegistered(providerType) else {
+        throw TranscriptionProviderFactoryError.providerNotRegistered(providerType)
+      }
+      
+      // Get provider directly by type instead of using getProviderForModel
+      guard let provider = await getProviderByType(providerType) else {
+        throw TranscriptionProviderFactoryError.providerNotRegistered(providerType)
+      }
+      
+      return (internalModelName, provider)
+    } else {
+      // Legacy format - default to WhisperKit
+      guard await factory.isProviderRegistered(.whisperKit) else {
+        throw TranscriptionProviderFactoryError.providerNotRegistered(.whisperKit)
+      }
+      
+      guard let provider = await getProviderByType(.whisperKit) else {
+        throw TranscriptionProviderFactoryError.providerNotRegistered(.whisperKit)
+      }
+      
+      return (modelName, provider)
     }
   }
-
-  /// Loads a local model folder via `WhisperKitConfig`, optionally reporting load progress.
-  private func loadWhisperKitModel(
-    _ modelName: String,
-    progressCallback: @escaping (Progress) -> Void
-  ) async throws {
-    let loadingProgress = Progress(totalUnitCount: 100)
-    loadingProgress.completedUnitCount = 0
-    progressCallback(loadingProgress)
-
-    let modelFolder = modelPath(for: modelName)
-    let tokenizerFolder = tokenizerPath(for: modelName)
-
-    // Use WhisperKit's config to load the model
-    let config = WhisperKitConfig(
-      model: modelName,
-      modelFolder: modelFolder.path,
-      tokenizerFolder: tokenizerFolder,
-      // verbose: true,
-      // logLevel: .debug,
-      prewarm: true,
-      load: true
-    )
-
-    // The initializer automatically calls `loadModels`.
-    whisperKit = try await WhisperKit(config)
-    currentModelName = modelName
-
-    // Finalize load progress
-    loadingProgress.completedUnitCount = 100
-    progressCallback(loadingProgress)
-
-    print("[TranscriptionClientLive] Loaded WhisperKit model: \(modelName)")
-  }
-
-  /// Moves all items from `sourceFolder` into `destFolder` (shallow move of directory contents).
-  private func moveContents(of sourceFolder: URL, to destFolder: URL) throws {
-    let fileManager = FileManager.default
-    let items = try fileManager.contentsOfDirectory(atPath: sourceFolder.path)
-    for item in items {
-      let src = sourceFolder.appendingPathComponent(item)
-      let dst = destFolder.appendingPathComponent(item)
-      try fileManager.moveItem(at: src, to: dst)
-    }
+  
+  /// Gets a provider by type directly from the factory
+  private func getProviderByType(_ providerType: TranscriptionProviderType) async -> (any TranscriptionProvider)? {
+    let allProviders = await factory.getAllRegisteredProviders()
+    return allProviders.first { type(of: $0).providerType == providerType }
   }
 }
