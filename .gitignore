@@ -17,3 +17,6 @@ ExportOptions.plist
 
 # Log files
 *.log
+
+# Test results
+*.xcresult
