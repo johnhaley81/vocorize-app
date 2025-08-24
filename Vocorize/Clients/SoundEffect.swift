@@ -11,6 +11,7 @@ import Dependencies
 import DependenciesMacros
 import Foundation
 import SwiftUI
+import os
 
 // Thank you. Never mind then.What a beautiful idea.
 public enum SoundEffect: String, CaseIterable {
@@ -66,7 +67,7 @@ actor SoundEffectsClientLive {
   func play(_ soundEffect: SoundEffect) {
     guard vocorizeSettings.soundEffectsEnabled else { return }
     guard let player = audioPlayers[soundEffect] else {
-      print("Sound not found: \(soundEffect)")
+      VocorizeLogger.soundEffect.error("Sound not found: \(soundEffect.rawValue)")
       return
     }
     player.volume = 0.2
@@ -100,7 +101,7 @@ actor SoundEffectsClientLive {
       forResource: soundEffect.fileName,
       withExtension: "mp3"
     ) else {
-      print("Failed to find sound file: \(soundEffect.fileName).mp3")
+      VocorizeLogger.soundEffect.error("Failed to find sound file: \(soundEffect.fileName).mp3")
       return
     }
 
@@ -109,7 +110,7 @@ actor SoundEffectsClientLive {
       player.prepareToPlay()
       audioPlayers[soundEffect] = player
     } catch {
-      print("Failed to load sound \(soundEffect): \(error.localizedDescription)")
+      VocorizeLogger.soundEffect.error("Failed to load sound \(soundEffect.rawValue): \(error.localizedDescription)")
     }
   }
 }

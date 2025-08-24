@@ -10,6 +10,7 @@ import Dependencies
 import DependenciesMacros
 import Sauce
 import SwiftUI
+import os
 
 @DependencyClient
 struct PasteboardClient {
@@ -125,7 +126,7 @@ struct PasteboardClientLive {
         if let scriptObject = NSAppleScript(source: script) {
             let result = scriptObject.executeAndReturnError(&error)
             if let error = error {
-                print("Error executing paste: \(error)")
+                VocorizeLogger.pasteboard.error("Error executing paste: \(error)")
                 return false
             }
             return result.booleanValue
@@ -146,7 +147,7 @@ struct PasteboardClientLive {
         
         // If menu-based paste failed, try simulated keypresses
         if !pasteSucceeded {
-            print("Failed to paste to frontmost app, falling back to simulated keypresses")
+            VocorizeLogger.pasteboard.warning("Failed to paste to frontmost app, falling back to simulated keypresses")
             let vKeyCode = Sauce.shared.keyCode(for: .v)
             let cmdKeyCode: CGKeyCode = 55 // Command key
 
@@ -187,7 +188,7 @@ struct PasteboardClientLive {
         // show a notification that text is available in clipboard
         if !pasteSucceeded && !vocorizeSettings.copyToClipboard {
             // Keep the transcribed text in clipboard regardless of setting
-            print("Paste operation failed. Text remains in clipboard as fallback.")
+            VocorizeLogger.pasteboard.error("Paste operation failed. Text remains in clipboard as fallback.")
             
             // TODO: Could add a notification here to inform user
             // that text is available in clipboard
@@ -200,7 +201,7 @@ struct PasteboardClientLive {
         var error: NSDictionary?
         script?.executeAndReturnError(&error)
         if let error = error {
-            print("Error executing AppleScript: \(error)")
+            VocorizeLogger.pasteboard.error("Error executing AppleScript: \(error)")
         }
     }
 
@@ -241,7 +242,7 @@ struct PasteboardClientLive {
         //     selectedText = selectedValue
         // }
         
-        // print("selected text: \(selectedText)")
+        // VocorizeLogger.pasteboard.debug("selected text: \(selectedText)")
         
         // Insert text at cursor position by replacing selected text (or empty selection)
         let insertResult = AXUIElementSetAttributeValue(focusedElement, kAXSelectedTextAttribute as CFString, text as CFTypeRef)

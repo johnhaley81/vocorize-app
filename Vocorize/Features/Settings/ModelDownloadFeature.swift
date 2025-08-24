@@ -8,6 +8,7 @@ import ComposableArchitecture
 import Dependencies
 import IdentifiedCollections
 import SwiftUI
+import os
 
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -132,7 +133,7 @@ private enum CuratedModelLoader {
 		guard let url = Bundle.main.url(forResource: "models", withExtension: "json") ??
 			Bundle.main.url(forResource: "models", withExtension: "json", subdirectory: "Data")
 		else {
-			print("⚠️ Could not find models.json in bundle")
+			VocorizeLogger.modelDownload.warning("Could not find models.json in bundle")
 			return []
 		}
 		do {
@@ -140,30 +141,25 @@ private enum CuratedModelLoader {
 			
 			// Try new schema format first
 			if let newFormat = try? JSONDecoder().decode(ModelsConfiguration.self, from: data) {
-				print("✅ Loaded models using new schema version \(newFormat.version)")
+				VocorizeLogger.modelDownload.info("Loaded models using new schema version \(newFormat.version)")
 				return newFormat.models
 			}
 			
 			// Fallback to old schema format for backward compatibility
 			if let oldFormat = try? JSONDecoder().decode([CuratedModelInfo].self, from: data) {
-				print("⚠️ Loaded models using legacy schema format")
+				VocorizeLogger.modelDownload.warning("Loaded models using legacy schema format")
 				return oldFormat
 			}
 			
-			print("❌ Failed to decode models.json in any known format")
+			VocorizeLogger.modelDownload.error("Failed to decode models.json in any known format")
 			return []
 		} catch {
-			print("❌ Error loading models.json: \(error)")
+			VocorizeLogger.modelDownload.error("Error loading models.json: \(error.localizedDescription)")
 			return []
 		}
 	}
 }
 
-// New schema wrapper struct
-private struct ModelsConfiguration: Codable {
-	let version: String
-	let models: [CuratedModelInfo]
-}
 
 // ──────────────────────────────────────────────────────────────────────────
 

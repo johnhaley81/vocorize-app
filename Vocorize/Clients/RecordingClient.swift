@@ -12,6 +12,7 @@ import CoreAudio
 import Dependencies
 import DependenciesMacros
 import Foundation
+import os
 
 /// Represents an audio input device
 struct AudioInputDevice: Identifiable, Equatable {
@@ -59,14 +60,14 @@ class MediaRemoteController {
   init?() {
     // Open the private framework.
     guard let handle = dlopen("/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote", RTLD_NOW) as UnsafeMutableRawPointer? else {
-      print("Unable to open MediaRemote")
+      VocorizeLogger.recording.error("Unable to open MediaRemote")
       return nil
     }
     mediaRemoteHandle = handle
 
     // Get pointer for the "is playing" function.
     guard let playingPtr = dlsym(handle, "MRMediaRemoteGetNowPlayingApplicationIsPlaying") else {
-      print("Unable to find MRMediaRemoteGetNowPlayingApplicationIsPlaying")
+      VocorizeLogger.recording.error("Unable to find MRMediaRemoteGetNowPlayingApplicationIsPlaying")
       return nil
     }
     mrNowPlayingIsPlaying = unsafeBitCast(playingPtr, to: MRNowPlayingIsPlayingFunc.self)
@@ -132,7 +133,7 @@ func pauseAllMediaApplications() async -> [String] {
     return []
   }
 
-  print("Installed media players: \(installedPlayers.keys.joined(separator: ", "))")
+  VocorizeLogger.recording.debug("Installed media players: \(installedPlayers.keys.joined(separator: ", "))")
   
   // Create AppleScript that only targets installed players
   var scriptParts: [String] = ["set pausedPlayers to {}"]
@@ -175,7 +176,7 @@ func pauseAllMediaApplications() async -> [String] {
   var error: NSDictionary?
   guard let resultDescriptor = appleScript?.executeAndReturnError(&error) else {
     if let error = error {
-      print("Error pausing media applications: \(error)")
+      VocorizeLogger.recording.error("Error pausing media applications: \(error)")
     }
     return []
   }
@@ -190,7 +191,7 @@ func pauseAllMediaApplications() async -> [String] {
     }
   }
     
-  print("Paused media players: \(pausedPlayers.joined(separator: ", "))")
+  VocorizeLogger.recording.debug("Paused media players: \(pausedPlayers.joined(separator: ", "))")
   
   return pausedPlayers
 }
@@ -240,7 +241,7 @@ func resumeMediaApplications(_ players: [String]) async {
   var error: NSDictionary?
   appleScript?.executeAndReturnError(&error)
   if let error = error {
-    print("Error resuming media applications: \(error)")
+    VocorizeLogger.recording.error("Error resuming media applications: \(error)")
   }
 }
 
@@ -345,7 +346,7 @@ actor RecordingClientLive {
     )
     
     if status != 0 {
-      print("Error getting audio devices property size: \(status)")
+      VocorizeLogger.recording.error("Error getting audio devices property size: \(status)")
       return []
     }
     
@@ -364,7 +365,7 @@ actor RecordingClientLive {
     )
     
     if status != 0 {
-      print("Error getting audio devices: \(status)")
+      VocorizeLogger.recording.error("Error getting audio devices: \(status)")
       return []
     }
     
@@ -381,7 +382,7 @@ actor RecordingClientLive {
     
     var deviceName: CFString? = nil
     var size = UInt32(MemoryLayout<CFString?>.size)
-    var deviceNamePtr: UnsafeMutableRawPointer = .allocate(byteCount: Int(size), alignment: MemoryLayout<CFString?>.alignment)
+    let deviceNamePtr: UnsafeMutableRawPointer = .allocate(byteCount: Int(size), alignment: MemoryLayout<CFString?>.alignment)
     defer { deviceNamePtr.deallocate() }
     
     let status = AudioObjectGetPropertyData(
@@ -398,7 +399,7 @@ actor RecordingClientLive {
     }
     
     if status != 0 {
-      print("Error getting device name: \(status)")
+      VocorizeLogger.recording.error("Error getting device name: \(status)")
       return nil
     }
     
@@ -467,9 +468,9 @@ actor RecordingClientLive {
     )
     
     if status != 0 {
-      print("Error setting default input device: \(status)")
+      VocorizeLogger.recording.error("Error setting default input device: \(status)")
     } else {
-      print("Successfully set input device to: \(deviceID)")
+      VocorizeLogger.recording.info("Successfully set input device to: \(deviceID)")
     }
   }
 
@@ -478,14 +479,14 @@ actor RecordingClientLive {
   }
 
   func startRecording() async {
-    print("[DEBUG] RecordingClient: Starting recording...")
+    VocorizeLogger.recording.debug("Starting recording...")
     
     // Check microphone permissions first
     let hasPermission = await requestMicrophoneAccess()
-    print("[DEBUG] RecordingClient: Microphone permission granted: \(hasPermission)")
+    VocorizeLogger.recording.debug("Microphone permission granted: \(hasPermission)")
     
     if !hasPermission {
-      print("[ERROR] RecordingClient: No microphone permission!")
+      VocorizeLogger.recording.error("No microphone permission!")
       return
     }
     
@@ -496,15 +497,15 @@ actor RecordingClientLive {
       // If no specific players were paused, pause generic media using the media key.
       if pausedPlayers.isEmpty {
         if await isAudioPlayingOnDefaultOutput() {
-          print("Audio is playing on the default output; pausing it for recording.")
+          VocorizeLogger.recording.info("Audio is playing on the default output; pausing it for recording.")
           await MainActor.run {
             sendMediaKey()
           }
           didPauseMedia = true
-          print("Media was playing; pausing it for recording.")
+          VocorizeLogger.recording.info("Media was playing; pausing it for recording.")
         }
       } else {
-        print("Paused media players: \(pausedPlayers.joined(separator: ", "))")
+        VocorizeLogger.recording.debug("Paused media players: \(self.pausedPlayers.joined(separator: ", "))")
       }
     }
     
@@ -514,14 +515,14 @@ actor RecordingClientLive {
       // Check if the selected device is still available
       let devices = getAllAudioDevices()
       if devices.contains(selectedDeviceID) && deviceHasInput(deviceID: selectedDeviceID) {
-        print("Setting selected input device: \(selectedDeviceID)")
+        VocorizeLogger.recording.info("Setting selected input device: \(selectedDeviceID)")
         setInputDevice(deviceID: selectedDeviceID)
       } else {
         // Device no longer available, fall back to system default
-        print("Selected device \(selectedDeviceID) is no longer available, using system default")
+        VocorizeLogger.recording.warning("Selected device \(selectedDeviceID) is no longer available, using system default")
       }
     } else {
-      print("Using default system microphone")
+      VocorizeLogger.recording.info("Using default system microphone")
     }
       
     let settings: [String: Any] = [
@@ -539,9 +540,9 @@ actor RecordingClientLive {
       recorder?.isMeteringEnabled = true
       recorder?.record()
       startMeterTask()
-      print("Recording started.")
+      VocorizeLogger.recording.info("Recording started.")
     } catch {
-      print("Could not start recording: \(error)")
+      VocorizeLogger.recording.error("Could not start recording: \(error.localizedDescription)")
     }
   }
 
@@ -549,11 +550,11 @@ actor RecordingClientLive {
     recorder?.stop()
     recorder = nil
     stopMeterTask()
-    print("Recording stopped.")
+    VocorizeLogger.recording.info("Recording stopped.")
 
     // Resume media if we previously paused specific players
     if !pausedPlayers.isEmpty {
-      print("Resuming previously paused players: \(pausedPlayers.joined(separator: ", "))")
+      VocorizeLogger.recording.debug("Resuming previously paused players: \(self.pausedPlayers.joined(separator: ", "))")
       await resumeMediaApplications(pausedPlayers)
       pausedPlayers = []
     }
@@ -563,7 +564,7 @@ actor RecordingClientLive {
         sendMediaKey()
       }
       didPauseMedia = false
-      print("Resuming previously paused media.")
+      VocorizeLogger.recording.info("Resuming previously paused media.")
     }
     return recordingURL
   }

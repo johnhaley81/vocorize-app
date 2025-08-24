@@ -89,8 +89,3 @@ public enum ValidationResult {
     }
 }
 
-// Private wrapper for new schema format
-private struct ModelsConfiguration: Codable {
-    let version: String
-    let models: [CuratedModelInfo]
-}

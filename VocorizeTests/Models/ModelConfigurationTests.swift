@@ -218,13 +218,6 @@ struct ModelConfigurationTests {
     }
 }
 
-// MARK: - Helper Types (These will be moved to production code during implementation)
-
-struct ModelsConfiguration: Codable {
-    let version: String
-    let models: [CuratedModelInfo]
-}
-
 // Test helper for CuratedModelLoader
 enum CuratedModelLoader {
     static func load() -> [CuratedModelInfo] {

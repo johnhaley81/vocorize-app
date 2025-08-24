@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import SwiftUI
+import os
 
 class VocorizeAppDelegate: NSObject, NSApplicationDelegate {
 	var invisibleWindow: InvisibleWindow?
@@ -11,14 +12,14 @@ class VocorizeAppDelegate: NSObject, NSApplicationDelegate {
 
 	func applicationDidFinishLaunching(_: Notification) {
 		if isTesting {
-			print("TESTING")
+			VocorizeLogger.app.debug("Running in test mode")
 			return
 		}
 
 		Task {
 			await soundEffect.preloadSounds()
 		}
-		print("VocorizeAppDelegate did finish launching")
+		VocorizeLogger.app.info("VocorizeAppDelegate did finish launching")
 
 		// Set activation policy first
 		updateAppMode()
@@ -80,8 +81,8 @@ class VocorizeAppDelegate: NSObject, NSApplicationDelegate {
 
 	@MainActor
 	private func updateAppMode() {
-		print("vocorizeSettings.showDockIcon: \(vocorizeSettings.showDockIcon)")
-		if vocorizeSettings.showDockIcon {
+		VocorizeLogger.app.debug("showDockIcon setting: \(self.vocorizeSettings.showDockIcon)")
+		if self.vocorizeSettings.showDockIcon {
 			NSApp.setActivationPolicy(.regular)
 		} else {
 			NSApp.setActivationPolicy(.accessory)
