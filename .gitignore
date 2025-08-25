@@ -15,8 +15,14 @@ ExportOptions.plist
 
 /commits.sh
 
-# Log files
+# Log files  
 *.log
+*output*.log
+*_test_*.log
 
 # Test results
 *.xcresult
+test_output.log
+mlx_test_output.log  
+*_output.txt
+mlx_integration_report.txt
