@@ -264,10 +264,15 @@ public class MLXPerformanceProfiler {
     }
     
     private func measureMLXColdStart(iteration: Int, config: ProfilingConfig) async -> SingleRunMetrics {
+        var intervalState: OSSignpostIntervalState?
         if config.enableSignposts {
             let signpostID = signposter.makeSignpostID()
-            signposter.beginInterval("MLX Cold Start", id: signpostID)
-            defer { signposter.endInterval("MLX Cold Start", id: signpostID) }
+            intervalState = signposter.beginInterval("MLX Cold Start", id: signpostID)
+            defer { 
+                if let state = intervalState {
+                    signposter.endInterval("MLX Cold Start", state)
+                }
+            }
         }
         
         let startTime = CFAbsoluteTimeGetCurrent()
@@ -306,10 +311,15 @@ public class MLXPerformanceProfiler {
     }
     
     private func measureMLXWarmStart(iteration: Int, config: ProfilingConfig) async -> SingleRunMetrics {
+        var intervalState: OSSignpostIntervalState?
         if config.enableSignposts {
             let signpostID = signposter.makeSignpostID()
-            signposter.beginInterval("MLX Warm Start", id: signpostID)
-            defer { signposter.endInterval("MLX Warm Start", id: signpostID) }
+            intervalState = signposter.beginInterval("MLX Warm Start", id: signpostID)
+            defer { 
+                if let state = intervalState {
+                    signposter.endInterval("MLX Warm Start", state)
+                }
+            }
         }
         
         let startTime = CFAbsoluteTimeGetCurrent()

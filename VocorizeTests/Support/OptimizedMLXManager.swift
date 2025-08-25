@@ -406,10 +406,10 @@ public struct OptimizationStats {
 
 /// Test environment preparation result
 public struct TestEnvironmentResult {
-    public let setupTime: TimeInterval
-    public let memoryOverhead: UInt64
-    public let isOptimized: Bool
-    public let availableFeatures: [String]
+    public var setupTime: TimeInterval
+    public var memoryOverhead: UInt64
+    public var isOptimized: Bool
+    public var availableFeatures: [String]
     
     public var isAcceptable: Bool {
         return setupTime < 5.0 && memoryOverhead < 100_000_000 // < 5s and < 100MB
