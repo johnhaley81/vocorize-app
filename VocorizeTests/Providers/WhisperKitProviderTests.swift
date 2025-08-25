@@ -256,7 +256,11 @@ struct WhisperKitProviderTests {
         // Should check actual WhisperKit model directory structure
         let modelPath = await provider.getModelPath(modelName)
         #expect(modelPath != nil)
-        #expect(FileManager.default.fileExists(atPath: modelPath!.path))
+        
+        // Only check file existence if modelPath exists
+        if let modelPath = modelPath {
+            #expect(FileManager.default.fileExists(atPath: modelPath.path))
+        }
     }
     
     @Test
@@ -296,10 +300,13 @@ struct WhisperKitProviderTests {
         #expect(modelNames.contains { $0.contains("whisper-small") })
         
         // Verify models have proper metadata
-        let firstModel = models.first!
-        #expect(!firstModel.displayName.isEmpty)
-        #expect(!firstModel.estimatedSize.isEmpty)
-        #expect(firstModel.estimatedSize != "Unknown")
+        #expect(models.first != nil)
+        
+        if let firstModel = models.first {
+            #expect(!firstModel.displayName.isEmpty)
+            #expect(!firstModel.estimatedSize.isEmpty)
+            #expect(firstModel.estimatedSize != "Unknown")
+        }
     }
     
     @Test
@@ -405,9 +412,13 @@ struct WhisperKitProviderTests {
         let modelPath = await provider.getModelPath(modelName)
         
         #expect(modelPath != nil)
-        #expect(modelPath!.path.contains("WhisperKit"))
-        #expect(modelPath!.path.contains(modelName))
-        #expect(modelPath!.isFileURL)
+        
+        // Only check these if modelPath exists
+        if let modelPath = modelPath {
+            #expect(modelPath.path.contains("WhisperKit"))
+            #expect(modelPath.path.contains(modelName))
+            #expect(modelPath.isFileURL)
+        }
     }
     
     @Test

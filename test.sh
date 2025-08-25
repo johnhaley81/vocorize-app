@@ -27,9 +27,11 @@ print_error() {
 print_status "Running Vocorize Tests..."
 
 # Run tests and capture output
+# Disabled test timeouts to accommodate MLX framework initialization
 xcodebuild test \
     -scheme Vocorize \
     -destination 'platform=macOS,arch=arm64' \
+    -test-timeouts-enabled NO \
     2>&1 | tee test_output.log
 
 # Check if tests passed
