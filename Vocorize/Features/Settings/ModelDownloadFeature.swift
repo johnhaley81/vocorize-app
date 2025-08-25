@@ -8,6 +8,7 @@ import ComposableArchitecture
 import Dependencies
 import IdentifiedCollections
 import SwiftUI
+import os
 
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -29,42 +30,100 @@ public struct ModelInfo: Equatable, Identifiable {
 public struct CuratedModelInfo: Equatable, Identifiable, Codable {
 	public let displayName: String
 	public let internalName: String
+	public let provider: String
 	public let size: String
 	public let accuracyStars: Int
 	public let speedStars: Int
 	public let storageSize: String
+	public let isRecommended: Bool
+	public let minimumRAM: String?
+	public let description: String?
 	public var isDownloaded: Bool
-	public var id: String { internalName }
+	public var id: String { "\(provider):\(internalName)" }
 
 	public init(
 		displayName: String,
 		internalName: String,
+		provider: String = "whisperkit",
 		size: String,
 		accuracyStars: Int,
 		speedStars: Int,
 		storageSize: String,
-		isDownloaded: Bool
+		isRecommended: Bool = false,
+		minimumRAM: String? = nil,
+		description: String? = nil,
+		isDownloaded: Bool = false
 	) {
 		self.displayName = displayName
 		self.internalName = internalName
+		self.provider = provider
 		self.size = size
 		self.accuracyStars = accuracyStars
 		self.speedStars = speedStars
 		self.storageSize = storageSize
+		self.isRecommended = isRecommended
+		self.minimumRAM = minimumRAM
+		self.description = description
 		self.isDownloaded = isDownloaded
 	}
 
-	// Codable (isDownloaded is set at runtime)
-	private enum CodingKeys: String, CodingKey { case displayName, internalName, size, accuracyStars, speedStars, storageSize }
+	// Updated Codable implementation to handle new schema
+	private enum CodingKeys: String, CodingKey {
+		case displayName, internalName, provider, size, accuracyStars, speedStars, storageSize, isRecommended, minimumRAM, description
+	}
+	
 	public init(from decoder: Decoder) throws {
-		let c = try decoder.container(keyedBy: CodingKeys.self)
-		displayName = try c.decode(String.self, forKey: .displayName)
-		internalName = try c.decode(String.self, forKey: .internalName)
-		size = try c.decode(String.self, forKey: .size)
-		accuracyStars = try c.decode(Int.self, forKey: .accuracyStars)
-		speedStars = try c.decode(Int.self, forKey: .speedStars)
-		storageSize = try c.decode(String.self, forKey: .storageSize)
-		isDownloaded = false
+		let container = try decoder.container(keyedBy: CodingKeys.self)
+		displayName = try container.decode(String.self, forKey: .displayName)
+		internalName = try container.decode(String.self, forKey: .internalName)
+		
+		// Backward compatibility: default to "whisperkit" if provider not specified
+		provider = try container.decodeIfPresent(String.self, forKey: .provider) ?? "whisperkit"
+		
+		size = try container.decode(String.self, forKey: .size)
+		accuracyStars = try container.decode(Int.self, forKey: .accuracyStars)
+		speedStars = try container.decode(Int.self, forKey: .speedStars)
+		storageSize = try container.decode(String.self, forKey: .storageSize)
+		
+		// New optional fields with defaults
+		isRecommended = try container.decodeIfPresent(Bool.self, forKey: .isRecommended) ?? false
+		minimumRAM = try container.decodeIfPresent(String.self, forKey: .minimumRAM)
+		description = try container.decodeIfPresent(String.self, forKey: .description)
+		
+		isDownloaded = false // Always starts as false, updated at runtime
+	}
+	
+	public func encode(to encoder: Encoder) throws {
+		var container = encoder.container(keyedBy: CodingKeys.self)
+		try container.encode(displayName, forKey: .displayName)
+		try container.encode(internalName, forKey: .internalName)
+		try container.encode(provider, forKey: .provider)
+		try container.encode(size, forKey: .size)
+		try container.encode(accuracyStars, forKey: .accuracyStars)
+		try container.encode(speedStars, forKey: .speedStars)
+		try container.encode(storageSize, forKey: .storageSize)
+		try container.encode(isRecommended, forKey: .isRecommended)
+		try container.encodeIfPresent(minimumRAM, forKey: .minimumRAM)
+		try container.encodeIfPresent(description, forKey: .description)
+		// Note: isDownloaded is not encoded as it's runtime state
+	}
+}
+
+// Add convenience computed properties
+extension CuratedModelInfo {
+	/// Returns the TranscriptionProviderType for this model
+	public var providerType: TranscriptionProviderType {
+		return TranscriptionProviderType(rawValue: provider) ?? .whisperKit
+	}
+	
+	/// Whether this model uses MLX provider
+	public var isMLXModel: Bool {
+		return providerType == .mlx
+	}
+	
+	/// Whether this model uses WhisperKit provider
+	public var isWhisperKitModel: Bool {
+		return providerType == .whisperKit
 	}
 }
 
@@ -74,13 +133,33 @@ private enum CuratedModelLoader {
 		guard let url = Bundle.main.url(forResource: "models", withExtension: "json") ??
 			Bundle.main.url(forResource: "models", withExtension: "json", subdirectory: "Data")
 		else {
-			assertionFailure("models.json not found in bundle")
+			VocorizeLogger.modelDownload.warning("Could not find models.json in bundle")
 			return []
 		}
-		do { return try JSONDecoder().decode([CuratedModelInfo].self, from: Data(contentsOf: url)) }
-		catch { assertionFailure("Failed to decode models.json – \(error)"); return [] }
+		do {
+			let data = try Data(contentsOf: url)
+			
+			// Try new schema format first
+			if let newFormat = try? JSONDecoder().decode(ModelsConfiguration.self, from: data) {
+				VocorizeLogger.modelDownload.info("Loaded models using new schema version \(newFormat.version)")
+				return newFormat.models
+			}
+			
+			// Fallback to old schema format for backward compatibility
+			if let oldFormat = try? JSONDecoder().decode([CuratedModelInfo].self, from: data) {
+				VocorizeLogger.modelDownload.warning("Loaded models using legacy schema format")
+				return oldFormat
+			}
+			
+			VocorizeLogger.modelDownload.error("Failed to decode models.json in any known format")
+			return []
+		} catch {
+			VocorizeLogger.modelDownload.error("Error loading models.json: \(error.localizedDescription)")
+			return []
+		}
 	}
 }
+
 
 // ──────────────────────────────────────────────────────────────────────────
 
