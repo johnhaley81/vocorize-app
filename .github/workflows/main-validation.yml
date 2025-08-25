@@ -26,7 +26,7 @@ on:
           - 'all'
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_15.4.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
   # Mixed testing mode - unit + critical integration
   VOCORIZE_TEST_MODE: mixed
   # Allow critical model downloads
@@ -35,7 +35,7 @@ env:
 jobs:
   unit-tests:
     name: Unit Tests
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 5
     
     outputs:
@@ -46,7 +46,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Select Xcode version
-      run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+      run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
       
     - name: Cache Swift Package Manager
       uses: actions/cache@v4
@@ -54,9 +54,9 @@ jobs:
         path: |
           .build
           ~/Library/Developer/Xcode/DerivedData
-        key: ${{ runner.os }}-main-spm-${{ hashFiles('**/Package.resolved') }}
+        key: ${{ runner.os }}-xcode162-spm-${{ hashFiles('**/Package.resolved') }}
         restore-keys: |
-          ${{ runner.os }}-main-spm-
+          ${{ runner.os }}-xcode162-spm-
           ${{ runner.os }}-spm-
           
     - name: Build and Run Unit Tests
@@ -82,7 +82,7 @@ jobs:
 
   critical-integration-tests:
     name: Critical Integration Tests
-    runs-on: macos-14
+    runs-on: macos-15
     needs: unit-tests
     if: needs.unit-tests.outputs.unit-test-status == 'success'
     timeout-minutes: 15
@@ -106,7 +106,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Select Xcode version
-      run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+      run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
       
     - name: Cache Swift Package Manager
       uses: actions/cache@v4
@@ -114,9 +114,9 @@ jobs:
         path: |
           .build
           ~/Library/Developer/Xcode/DerivedData
-        key: ${{ runner.os }}-integration-spm-${{ hashFiles('**/Package.resolved') }}
+        key: ${{ runner.os }}-xcode162-spm-${{ hashFiles('**/Package.resolved') }}
         restore-keys: |
-          ${{ runner.os }}-main-spm-
+          ${{ runner.os }}-xcode162-spm-
           ${{ runner.os }}-spm-
           
     - name: Cache WhisperKit Models
@@ -176,7 +176,7 @@ jobs:
 
   performance-regression-check:
     name: Performance Regression Detection
-    runs-on: macos-14
+    runs-on: macos-15
     needs: [unit-tests, critical-integration-tests]
     if: always() && needs.unit-tests.outputs.unit-test-status == 'success'
     timeout-minutes: 10
@@ -215,7 +215,7 @@ jobs:
         
   security-scan:
     name: Security Scan
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 5
     
     steps:
@@ -249,7 +249,7 @@ jobs:
 
   deploy-ready-check:
     name: Deployment Readiness
-    runs-on: macos-14
+    runs-on: macos-15
     needs: [unit-tests, critical-integration-tests, performance-regression-check, security-scan]
     if: always()
     timeout-minutes: 5

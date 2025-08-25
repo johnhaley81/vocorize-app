@@ -26,7 +26,7 @@ on:
         type: boolean
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_15.4.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
   # Full integration test mode
   VOCORIZE_TEST_MODE: integration
   # Allow all model downloads
@@ -86,7 +86,7 @@ jobs:
 
   comprehensive-tests:
     name: ${{ matrix.suite }} (Models: ${{ matrix.models }})
-    runs-on: macos-14
+    runs-on: macos-15
     needs: test-matrix-setup
     timeout-minutes: ${{ matrix.timeout }}
     
@@ -100,7 +100,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Select Xcode version
-      run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+      run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
       
     - name: Cache Swift Package Manager
       uses: actions/cache@v4
@@ -108,8 +108,9 @@ jobs:
         path: |
           .build
           ~/Library/Developer/Xcode/DerivedData
-        key: ${{ runner.os }}-nightly-spm-${{ hashFiles('**/Package.resolved') }}
+        key: ${{ runner.os }}-xcode162-spm-${{ hashFiles('**/Package.resolved') }}
         restore-keys: |
+          ${{ runner.os }}-xcode162-spm-
           ${{ runner.os }}-nightly-spm-
           ${{ runner.os }}-main-spm-
           ${{ runner.os }}-spm-
@@ -122,7 +123,7 @@ jobs:
           ~/Library/Caches/whisperkit
           ~/.cache/huggingface
           ~/Library/Caches/mlx-community
-        key: ${{ runner.os }}-models-${{ matrix.models }}-v2
+        key: ${{ runner.os }}-models-${{ matrix.models || 'none' }}-v3
         restore-keys: |
           ${{ runner.os }}-models-
           

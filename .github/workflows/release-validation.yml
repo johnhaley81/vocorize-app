@@ -30,7 +30,7 @@ on:
           - 'smoke-test'
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_15.4.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
   # Release validation mode - comprehensive testing
   VOCORIZE_TEST_MODE: release
   # Enable all model downloads and validations
@@ -40,7 +40,7 @@ env:
 jobs:
   pre-release-checks:
     name: Pre-Release Validation
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 5
     
     outputs:
@@ -110,7 +110,7 @@ jobs:
 
   comprehensive-test-suite:
     name: Comprehensive Release Testing
-    runs-on: macos-14
+    runs-on: macos-15
     needs: pre-release-checks
     timeout-minutes: 60
     
@@ -136,7 +136,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Select Xcode version
-      run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+      run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
       
     - name: Cache Dependencies and Models
       uses: actions/cache@v4
@@ -146,8 +146,9 @@ jobs:
           ~/Library/Developer/Xcode/DerivedData
           ~/Library/Caches/whisperkit
           ~/.cache/huggingface
-        key: ${{ runner.os }}-release-${{ matrix.test-category.name }}-${{ hashFiles('**/Package.resolved') }}
+        key: ${{ runner.os }}-xcode162-spm-${{ hashFiles('**/Package.resolved') }}
         restore-keys: |
+          ${{ runner.os }}-xcode162-spm-
           ${{ runner.os }}-release-
           ${{ runner.os }}-nightly-spm-
           ${{ runner.os }}-main-spm-
@@ -216,7 +217,7 @@ jobs:
 
   performance-benchmarks:
     name: Performance Benchmarks
-    runs-on: macos-14
+    runs-on: macos-15
     needs: pre-release-checks
     if: github.event.inputs.skip_performance_tests != 'true'
     timeout-minutes: 45
@@ -226,7 +227,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Select Xcode version
-      run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+      run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
       
     - name: Cache Performance Models
       uses: actions/cache@v4
@@ -279,7 +280,7 @@ jobs:
 
   build-validation:
     name: Build Validation
-    runs-on: macos-14
+    runs-on: macos-15
     needs: [comprehensive-test-suite]
     timeout-minutes: 15
     
@@ -288,7 +289,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Select Xcode version
-      run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+      run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
       
     - name: Cache Build Dependencies
       uses: actions/cache@v4
@@ -296,8 +297,9 @@ jobs:
         path: |
           .build
           ~/Library/Developer/Xcode/DerivedData
-        key: ${{ runner.os }}-release-build-${{ hashFiles('**/Package.resolved') }}
+        key: ${{ runner.os }}-xcode162-spm-${{ hashFiles('**/Package.resolved') }}
         restore-keys: |
+          ${{ runner.os }}-xcode162-spm-
           ${{ runner.os }}-release-
           
     - name: Build Release Configuration
@@ -343,7 +345,7 @@ jobs:
 
   security-validation:
     name: Security & Code Quality
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 10
     
     steps:
