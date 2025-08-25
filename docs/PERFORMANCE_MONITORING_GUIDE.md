@@ -1,8 +1,10 @@
 # Performance Monitoring and Benchmarking Guide
 
+> **Quick Start**: Run `./performance-measurement.sh` to get an instant performance report with actionable recommendations.
+
 This guide explains the performance monitoring infrastructure in Vocorize, designed to track, measure, and validate test optimization improvements.
 
-## Overview
+## 📊 Overview
 
 The performance monitoring system provides comprehensive tracking of test execution performance, enabling:
 

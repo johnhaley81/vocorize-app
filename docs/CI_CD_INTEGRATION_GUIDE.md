@@ -1,8 +1,10 @@
 # CI/CD Integration Guide for Test Optimization
 
+> **Quick Start**: Jump to [GitHub Actions](#github-actions), [GitLab CI](#gitlab-ci), or [Azure DevOps](#azure-devops) for platform-specific configuration.
+
 This guide explains how to integrate Vocorize's optimized test infrastructure into CI/CD pipelines for maximum efficiency and reliability.
 
-## Overview
+## 🎯 Overview
 
 The test optimization infrastructure provides significant benefits for CI/CD environments:
 
@@ -10,6 +12,15 @@ The test optimization infrastructure provides significant benefits for CI/CD env
 - **Reliable Caching**: Consistent performance across build agents
 - **Resource Efficiency**: Minimal network and storage requirements
 - **Performance Gates**: Automated performance regression detection
+
+## 🗺️ Navigation Guide
+
+| Section | Use Case | Time Investment |
+|---------|----------|----------------|
+| [Platform Configurations](#platform-specific-configurations) | Set up CI for your platform | 30-60 minutes |
+| [Cache Management](#cache-management-strategies) | Optimize cache performance | 15-30 minutes |
+| [Performance Gates](#performance-gates-and-validation) | Add performance validation | 15-30 minutes |
+| [Troubleshooting](#troubleshooting-cicd-issues) | Fix CI/CD issues | As needed |
 
 ## CI/CD Integration Architecture
 

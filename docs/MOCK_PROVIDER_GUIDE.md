@@ -1,8 +1,10 @@
 # Mock Provider Development Guide
 
+> **Developer Tip**: Use `export VOCORIZE_TEST_MODE=unit` before running tests to automatically get 10-30 second test execution instead of 5-10 minutes.
+
 This guide explains the mock provider architecture in Vocorize, designed to enable fast unit testing without ML model dependencies.
 
-## Overview
+## 🎯 Overview
 
 Mock providers eliminate the primary bottleneck in unit testing: ML model initialization and inference. By providing configurable, predictable responses, mock providers enable:
 

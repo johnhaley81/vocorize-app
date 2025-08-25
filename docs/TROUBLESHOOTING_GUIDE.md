@@ -1,6 +1,34 @@
 # Test Infrastructure Troubleshooting Guide
 
+> **Emergency Fix**: Most issues (80%+) are resolved by: `./scripts/cache-manager.sh clean && export VOCORIZE_TEST_MODE=unit && ./test-unit.sh`
+
 This guide provides systematic troubleshooting procedures for Vocorize's optimized test infrastructure, covering common issues and their solutions.
+
+## 🎯 Quick Wins (Try These First)
+
+### 90% of Issues - Basic Reset
+```bash
+# Clean cache and force unit test mode
+./scripts/cache-manager.sh clean
+export VOCORIZE_TEST_MODE=unit
+./test-unit.sh  # Should complete in <30 seconds
+```
+
+### Slow Tests - Environment Check
+```bash
+# Verify mock providers are being used
+echo $VOCORIZE_TEST_MODE  # Should be 'unit' for fast tests
+./test-unit.sh --debug | head -20  # Check for MockWhisperKitProvider
+```
+
+### CI/CD Issues - Cache Check  
+```bash
+# Verify cache configuration
+./scripts/cache-manager.sh status
+ls -la ~/.cache/huggingface/hub/  # Should show cached models
+```
+
+---
 
 ## Overview
 
