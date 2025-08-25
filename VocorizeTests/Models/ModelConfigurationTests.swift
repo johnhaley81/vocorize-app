@@ -203,7 +203,7 @@ struct ModelConfigurationTests {
         // Test that we can read the version from new schema
         guard let url = Bundle.main.url(forResource: "models", withExtension: "json") ??
               Bundle.main.url(forResource: "models", withExtension: "json", subdirectory: "Data") else {
-            throw TestError("models.json not found")
+            throw ModelTestError("models.json not found")
         }
         
         let data = try Data(contentsOf: url)
@@ -246,7 +246,7 @@ enum CuratedModelLoader {
     }
 }
 
-private enum TestError: Error {
+private enum ModelTestError: Error {
     case fileNotFound(String)
     
     init(_ message: String) {

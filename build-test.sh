@@ -75,6 +75,39 @@ xcodebuild -resolvePackageDependencies \
     -project "$PROJECT_FILE" \
     -scheme "$SCHEME_NAME"
 
+# Verify MLX framework availability
+print_status "Verifying MLX Swift framework..."
+MLX_FOUND=false
+
+# Check Package.resolved for mlx-swift
+PACKAGE_RESOLVED="$PROJECT_FILE/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+if [ -f "$PACKAGE_RESOLVED" ]; then
+    if grep -q "mlx-swift" "$PACKAGE_RESOLVED"; then
+        print_success "MLX Swift package found in Package.resolved"
+        MLX_FOUND=true
+    else
+        print_warning "MLX Swift package not found in Package.resolved"
+    fi
+else
+    print_warning "Package.resolved file not found"
+fi
+
+# Check build settings for MLX references
+if xcodebuild -project "$PROJECT_FILE" -scheme "$SCHEME_NAME" -showBuildSettings | grep -q "MLX"; then
+    print_success "MLX Swift framework detected in build settings"
+    MLX_FOUND=true
+else
+    print_warning "MLX Swift framework not found in build settings"
+fi
+
+# Final MLX verification status
+if [ "$MLX_FOUND" = true ]; then
+    print_success "MLX Swift framework verification completed successfully"
+else
+    print_error "MLX Swift framework verification failed"
+    print_error "This may cause build issues with ML functionality"
+fi
+
 # Build and archive
 print_status "Building and archiving $PROJECT_NAME..."
 xcodebuild clean archive \

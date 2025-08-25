@@ -1,0 +1,252 @@
+# CI/CD Configuration for Vocorize
+# This file defines test execution strategies and environment configurations
+
+pipeline_strategy:
+  # Pull Request Pipeline - Fast feedback
+  pr_validation:
+    timeout_minutes: 10
+    test_strategy: unit_only
+    cache_strategy: aggressive
+    failure_strategy: fail_fast
+    tests:
+      include:
+        - VocorizeTests/VocorizeTests
+        - VocorizeTests/WhisperKitProviderTests
+        - VocorizeTests/TranscriptionProviderTests
+        - VocorizeTests/TranscriptionClientProviderTests
+        - VocorizeTests/ModelConfigurationTests
+        - VocorizeTests/MLXProviderRegistrationTests
+        - VocorizeTests/MLXAvailabilityTests
+        - VocorizeTests/TranscriptionProviderFactoryTests
+      exclude:
+        - "*/Integration*"
+        - "*/System*"
+    environment:
+      VOCORIZE_TEST_MODE: unit
+      VOCORIZE_SKIP_MODEL_DOWNLOADS: "true"
+      VOCORIZE_MOCK_PROVIDERS_ONLY: "true"
+    performance_targets:
+      unit_test_max_duration: "10s"
+      total_pipeline_max_duration: "2m"
+      
+  # Main Branch Pipeline - Balanced validation
+  main_validation:
+    timeout_minutes: 20
+    test_strategy: unit_plus_critical_integration
+    cache_strategy: balanced
+    failure_strategy: continue_on_integration_failure
+    tests:
+      unit_tests:
+        - VocorizeTests/VocorizeTests
+        - VocorizeTests/WhisperKitProviderTests
+        - VocorizeTests/TranscriptionProviderTests
+        - VocorizeTests/TranscriptionClientProviderTests
+        - VocorizeTests/ModelConfigurationTests
+        - VocorizeTests/MLXProviderRegistrationTests
+        - VocorizeTests/MLXAvailabilityTests
+        - VocorizeTests/TranscriptionProviderFactoryTests
+      critical_integration_tests:
+        - VocorizeTests/WhisperKitIntegrationTests/realModelDownload_downloadsTinyModelFromHuggingFace
+        - VocorizeTests/MLXSystemCompatibilityTests
+        - VocorizeTests/ProviderSystemIntegrationTests
+    environment:
+      VOCORIZE_TEST_MODE: mixed
+      VOCORIZE_ALLOW_CRITICAL_MODELS: "true"
+    performance_targets:
+      unit_test_max_duration: "10s"
+      critical_integration_max_duration: "15m"
+      total_pipeline_max_duration: "20m"
+      
+  # Nightly Pipeline - Comprehensive validation
+  nightly_validation:
+    timeout_minutes: 90
+    test_strategy: comprehensive
+    cache_strategy: persistent
+    failure_strategy: continue_all
+    test_matrix:
+      - suite: unit
+        timeout: 10
+        models: none
+        critical: true
+      - suite: whisperkit_integration
+        timeout: 30
+        models: "tiny,base"
+        critical: true
+      - suite: mlx_integration
+        timeout: 20
+        models: "mlx-tiny"
+        critical: false
+      - suite: provider_integration
+        timeout: 25
+        models: "recommended"
+        critical: true
+      - suite: system_integration
+        timeout: 45
+        models: "all-critical"
+        critical: false
+      - suite: performance_benchmarks
+        timeout: 40
+        models: "benchmark-set"
+        critical: false
+    environment:
+      VOCORIZE_TEST_MODE: integration
+      VOCORIZE_ALLOW_MODEL_DOWNLOADS: "true"
+      VOCORIZE_VERBOSE_LOGGING: "true"
+    performance_targets:
+      unit_test_max_duration: "10s"
+      integration_test_max_duration: "60m"
+      total_pipeline_max_duration: "90m"
+      
+  # Release Pipeline - Complete validation
+  release_validation:
+    timeout_minutes: 120
+    test_strategy: complete
+    cache_strategy: minimal
+    failure_strategy: fail_on_critical
+    test_categories:
+      - name: "Core Unit Tests"
+        pattern: "VocorizeTests WhisperKitProviderTests TranscriptionProviderTests"
+        timeout: 10
+        critical: true
+      - name: "Integration Tests"
+        pattern: "WhisperKitIntegrationTests MLXIntegrationTests ProviderSystemIntegrationTests"
+        timeout: 35
+        critical: true
+      - name: "System Tests"
+        pattern: "MLXSystemCompatibilityTests TranscriptionClientProviderTests"
+        timeout: 15
+        critical: false
+    environment:
+      VOCORIZE_TEST_MODE: release
+      VOCORIZE_RELEASE_VALIDATION: "true"
+      VOCORIZE_PERFORMANCE_BENCHMARKS: "true"
+    performance_targets:
+      unit_test_max_duration: "10s"
+      integration_test_max_duration: "35m"
+      performance_benchmark_max_duration: "45m"
+      total_pipeline_max_duration: "120m"
+
+# Model Management Strategy
+model_management:
+  unit_tests:
+    download_models: false
+    use_mock_providers: true
+    cache_strategy: none
+    
+  integration_tests:
+    critical_models:
+      - "openai_whisper-tiny"          # Fast download, good for basic testing
+      - "openai_whisper-base"          # Balanced performance/accuracy
+      - "mlx-community/whisper-tiny-mlx"  # MLX compatibility check
+    recommended_models:
+      - "openai_whisper-small"         # Better accuracy
+    performance_models:
+      - "openai_whisper-tiny"          # Speed benchmarks
+      - "openai_whisper-base"          # Balanced benchmarks
+      - "openai_whisper-small"         # Accuracy benchmarks
+    cache_strategy: persistent
+    cache_duration: 7d
+    
+  release_tests:
+    download_all_supported: true
+    validate_model_integrity: true
+    cache_strategy: temporary
+    cleanup_after_tests: true
+
+# Performance Benchmarks
+performance_benchmarks:
+  unit_tests:
+    target_duration: 5s
+    warning_threshold: 8s
+    failure_threshold: 15s
+    
+  integration_tests:
+    model_download:
+      tiny_model: 5m
+      base_model: 10m
+      small_model: 15m
+    transcription:
+      tiny_model: 30s
+      base_model: 60s
+      small_model: 120s
+      
+  system_integration:
+    full_pipeline: 300s
+    cold_start: 60s
+    warm_start: 10s
+
+# Resource Management
+resource_management:
+  disk_space:
+    minimum_required: 10GB
+    model_cache_limit: 5GB
+    cleanup_threshold: 2GB
+    
+  memory:
+    minimum_required: 8GB
+    test_process_limit: 4GB
+    model_loading_limit: 2GB
+    
+  network:
+    download_timeout: 600s
+    retry_attempts: 3
+    bandwidth_requirements:
+      tiny_model: 1Mbps
+      base_model: 5Mbps
+      large_model: 10Mbps
+
+# Error Handling Strategy
+error_handling:
+  transient_errors:
+    network_failures:
+      retry_count: 3
+      backoff_strategy: exponential
+      max_delay: 300s
+      
+    model_download_failures:
+      retry_count: 2
+      fallback_models: ["openai_whisper-tiny"]
+      
+    test_timeouts:
+      extend_timeout_on_first_failure: true
+      maximum_extensions: 1
+      
+  permanent_errors:
+    compilation_errors:
+      fail_immediately: true
+      block_deployment: true
+      
+    critical_test_failures:
+      fail_immediately: true
+      block_deployment: true
+      
+  reporting:
+    create_issues_for:
+      - nightly_test_failures
+      - performance_regressions
+      - security_vulnerabilities
+      
+    notification_channels:
+      - github_issues
+      - github_step_summary
+
+# Deployment Gates
+deployment_gates:
+  staging:
+    required_checks:
+      - unit_tests_pass
+      - security_scan_pass
+    optional_checks:
+      - critical_integration_tests_pass
+      
+  production:
+    required_checks:
+      - all_unit_tests_pass
+      - critical_integration_tests_pass
+      - security_scan_pass
+      - performance_benchmarks_pass
+      - build_validation_pass
+    blocking_conditions:
+      - active_security_vulnerabilities
+      - performance_regressions
+      - critical_test_failures
