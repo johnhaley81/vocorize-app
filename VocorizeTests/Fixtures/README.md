@@ -5,22 +5,21 @@ This directory contains test fixtures for fast, predictable testing of the Whisp
 ## Overview
 
 The fixtures provide:
-- **Realistic test data** that matches production formats
-- **Instant loading** without network calls or large file operations
+- **Filename-based mock responses** from ExpectedTranscriptions.json
+- **Instant loading** without network calls or file operations
 - **Predictable results** for consistent testing
-- **Comprehensive coverage** of various scenarios
+- **No actual audio files required** - MockWhisperKitProvider uses only filenames
 
 ## File Structure
 
 ```
 Fixtures/
 ├── TestModels.json           # Model metadata and configuration
-├── ExpectedTranscriptions.json  # Transcription results for test audio
+├── ExpectedTranscriptions.json  # Filename→response mapping for mock testing
 ├── MockPaths.json            # File system paths for model storage
-├── Audio/                    # Generated test audio files
 ├── TestFixtures.swift        # Fixture loading utilities
-├── AudioGenerator.swift      # Audio file generation
 ├── MockWhisperKitProvider.swift  # Mock provider implementation
+├── ExampleUsage.swift        # Example test code
 └── README.md                 # This file
 ```
 
@@ -52,24 +51,26 @@ provider.setSimulateNetworkDelay(false) // Instant operations
 provider.mockDownloadedModels(["openai_whisper-base"])
 provider.mockLoadedModels(["openai_whisper-base"])
 
-// Test transcription
-let audioURL = TestFixtures.getTestAudioURL(filename: "hello_world.wav")
+// Test transcription (URL can be any path with target filename)
+let audioURL = URL(fileURLWithPath: "/tmp/hello_world.wav") // Only filename matters
 let result = try await provider.transcribe(
     audioURL: audioURL,
     modelName: "openai_whisper-base",
     options: DecodingOptions(),
     progressCallback: { _ in }
-)
+) // Returns "Hello, world!" from ExpectedTranscriptions.json
 ```
 
-### Generating Test Audio
+### Filename-Based Testing
 
 ```swift
-// Generate all test audio files
-try TestFixtures.ensureTestAudioFilesExist()
+// Get supported filenames (no actual files needed)
+let supportedFiles = TestFixtures.getSupportedTestAudioFilenames()
+// Returns: ["silence.wav", "hello_world.wav", "quick_brown_fox.wav", ...]
 
-// Or generate manually
-try AudioGenerator.generateAllTestAudio()
+// Create test URL with any path - only filename is used
+let testURL = FileManager.default.temporaryDirectory
+    .appendingPathComponent("hello_world.wav")
 ```
 
 ## Test Data
@@ -84,24 +85,24 @@ The fixture includes 6 test models:
 - **openai_whisper-large-v3**: Highest accuracy, slowest (not test compatible)
 - **mlx-community/whisper-large-v3-turbo**: MLX optimized (test compatible)
 
-### Audio Files
+### Supported Filenames
 
-Generated test audio includes:
-- `silence.wav` - Pure silence (1 second)
-- `hello_world.wav` - Speech-like tones (2.5 seconds)
-- `quick_brown_fox.wav` - Complex sentence simulation (3.2 seconds)
-- `numbers_123.wav` - Number sequence (2.8 seconds)
-- `multilingual_sample.wav` - Mixed language simulation (2.0 seconds)
-- `noisy_audio.wav` - Audio with background noise (3.5 seconds)
-- `long_sentence.wav` - Extended content (8.5 seconds)
+MockWhisperKitProvider recognizes these filenames and returns predefined responses:
+- `silence.wav` → Returns empty string ("")
+- `hello_world.wav` → Returns "Hello, world!"
+- `quick_brown_fox.wav` → Returns "The quick brown fox jumps over the lazy dog."
+- `numbers_123.wav` → Returns "One, two, three."
+- `multilingual_sample.wav` → Returns "Hello, hola, bonjour."
+- `noisy_audio.wav` → Returns "This is noisy audio."
+- `long_sentence.wav` → Returns a longer text sample
 
 ### Error Scenarios
 
-The fixtures include error test files:
-- `corrupted_audio.wav` - Invalid WAV format
-- `unsupported_format.mp3` - Unsupported audio format
-- `empty_audio.wav` - Zero duration audio
-- `too_long_audio.wav` - Exceeds maximum duration
+These filenames trigger specific errors:
+- `corrupted_audio.wav` → Throws AudioDecodingFailed error
+- `unsupported_format.mp3` → Throws UnsupportedAudioFormat error
+- `empty_audio.wav` → Throws EmptyAudioFile error
+- `too_long_audio.wav` → Throws AudioTooLong error
 
 ## Configuration
 
@@ -136,9 +137,10 @@ File system simulation includes:
 
 All fixtures are designed for speed:
 - JSON files total < 50KB
-- Audio files are minimal (< 100KB each)
+- No actual audio files needed
 - No network operations required
 - Instant loading and processing
+- Zero file I/O for mock transcription
 
 ## Maintenance
 
@@ -149,11 +151,11 @@ All fixtures are designed for speed:
 3. Update test configuration arrays
 4. Add expected results if needed
 
-### Adding New Audio
+### Adding New Mock Responses
 
-1. Add filename to required files list in `TestFixtures.swift`
-2. Add generation code to `AudioGenerator.swift`
-3. Add expected transcription to `ExpectedTranscriptions.json`
+1. Add filename to `getSupportedTestAudioFilenames()` in `TestFixtures.swift`
+2. Add expected transcription to `ExpectedTranscriptions.json`
+3. No actual audio files needed - MockWhisperKitProvider uses filename only
 
 ### Updating Expectations
 
@@ -165,9 +167,9 @@ All fixtures are designed for speed:
 
 The fixtures integrate with the test suite through:
 
-1. **TestFixtures** - Centralized loading and access
-2. **MockWhisperKitProvider** - Drop-in replacement for real provider
-3. **AudioGenerator** - On-demand test audio creation
-4. **Automatic setup** - Files generated as needed during test runs
+1. **TestFixtures** - Centralized loading and filename management
+2. **MockWhisperKitProvider** - Drop-in replacement that uses filename-based responses
+3. **ExpectedTranscriptions.json** - Maps filenames to mock transcription results
+4. **Zero setup required** - No files to generate or manage
 
-This ensures tests run quickly while maintaining realistic behavior and comprehensive coverage.
+This ensures tests run instantly while maintaining realistic behavior patterns and comprehensive coverage.

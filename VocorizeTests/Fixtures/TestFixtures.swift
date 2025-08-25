@@ -84,44 +84,36 @@ struct TestFixtures {
         return pathInfo
     }
     
-    /// Get test audio file URL
+    /// Get test audio file URL (returns temporary path - actual files not needed)
+    /// MockWhisperKitProvider only uses the filename, not the actual file content
     static func getTestAudioURL(filename: String) -> URL {
-        return getAudioFixturesDirectory().appendingPathComponent(filename)
+        return FileManager.default.temporaryDirectory.appendingPathComponent(filename)
     }
     
-    /// Check if test audio file exists
+    /// Check if test audio file exists (always returns true for mock testing)
+    /// MockWhisperKitProvider doesn't require actual files, only filenames
     static func testAudioFileExists(filename: String) -> Bool {
-        let url = getTestAudioURL(filename: filename)
-        return FileManager.default.fileExists(atPath: url.path)
+        return true // Mock provider doesn't need actual files
     }
     
     // MARK: - Test Setup Helpers
     
-    /// Generate all test audio files if they don't exist
-    static func ensureTestAudioFilesExist() throws {
-        let audioDir = getAudioFixturesDirectory()
-        
-        // Create directory if it doesn't exist
-        if !FileManager.default.fileExists(atPath: audioDir.path) {
-            try FileManager.default.createDirectory(at: audioDir, withIntermediateDirectories: true)
-        }
-        
-        // Check if we need to generate audio files
-        let requiredFiles = [
+    /// Get supported test audio filenames (no actual files needed)
+    /// MockWhisperKitProvider returns responses based on filename patterns from ExpectedTranscriptions.json
+    static func getSupportedTestAudioFilenames() -> [String] {
+        return [
             "silence.wav",
             "hello_world.wav",
-            "quick_brown_fox.wav",
+            "quick_brown_fox.wav", 
             "numbers_123.wav",
             "multilingual_sample.wav",
             "noisy_audio.wav",
-            "long_sentence.wav"
+            "long_sentence.wav",
+            "corrupted_audio.wav",
+            "empty_audio.wav",
+            "too_long_audio.wav",
+            "unsupported_format.mp3"
         ]
-        
-        let missingFiles = requiredFiles.filter { !testAudioFileExists(filename: $0) }
-        
-        if !missingFiles.isEmpty {
-            try AudioGenerator.generateAllTestAudio()
-        }
     }
     
     /// Convert TestModelInfo to ProviderModelInfo format
@@ -174,8 +166,10 @@ struct TestFixtures {
         return FileManager.default.temporaryDirectory.appendingPathComponent("VocorizeTests/Fixtures")
     }
     
+    // Audio fixtures directory not needed - mock provider uses filename-based responses
+    // Kept for backward compatibility but returns temporary directory
     private static func getAudioFixturesDirectory() -> URL {
-        return getFixturesDirectory().appendingPathComponent("Audio")
+        return FileManager.default.temporaryDirectory.appendingPathComponent("MockAudio")
     }
 }
 
@@ -307,7 +301,6 @@ enum TestFixtureError: Error, LocalizedError {
     case transcriptionNotFound(String)
     case pathNotFound(String)
     case fixtureLoadFailed(String)
-    case audioGenerationFailed(String)
     
     var errorDescription: String? {
         switch self {
@@ -319,8 +312,6 @@ enum TestFixtureError: Error, LocalizedError {
             return "Mock path for model '\(modelName)' not found in fixtures"
         case .fixtureLoadFailed(let reason):
             return "Failed to load fixture: \(reason)"
-        case .audioGenerationFailed(let reason):
-            return "Failed to generate test audio: \(reason)"
         }
     }
 }

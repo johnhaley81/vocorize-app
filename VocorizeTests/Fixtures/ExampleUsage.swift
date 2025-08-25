@@ -62,7 +62,7 @@ struct FixtureUsageExamples {
     @Test
     func mockProvider_basicUsage() async throws {
         // Ensure test audio exists
-        try TestFixtures.ensureTestAudioFilesExist()
+        // No audio files needed - MockWhisperKitProvider uses filename-based responses
         
         // Create and configure mock provider
         let provider = try await MockWhisperKitProvider()
@@ -111,7 +111,7 @@ struct FixtureUsageExamples {
     
     @Test
     func mockProvider_transcription() async throws {
-        try TestFixtures.ensureTestAudioFilesExist()
+        // No audio files needed - MockWhisperKitProvider uses filename-based responses
         
         let provider = try await MockWhisperKitProvider(preloadModels: ["openai_whisper-base"])
         await provider.setSimulateNetworkDelay(false)
@@ -136,7 +136,7 @@ struct FixtureUsageExamples {
     
     @Test
     func mockProvider_silenceHandling() async throws {
-        try TestFixtures.ensureTestAudioFilesExist()
+        // No audio files needed - MockWhisperKitProvider uses filename-based responses
         
         let provider = try await MockWhisperKitProvider(preloadModels: ["openai_whisper-tiny"])
         await provider.setSimulateNetworkDelay(false)
@@ -154,7 +154,7 @@ struct FixtureUsageExamples {
     
     @Test
     func mockProvider_errorScenarios() async throws {
-        try TestFixtures.ensureTestAudioFilesExist()
+        // No audio files needed - MockWhisperKitProvider uses filename-based responses
         
         let provider = try await MockWhisperKitProvider(preloadModels: ["openai_whisper-base"])
         await provider.setSimulateNetworkDelay(false)
@@ -302,7 +302,7 @@ struct FixtureUsageExamples {
         }
         
         // Generate files on demand
-        try TestFixtures.ensureTestAudioFilesExist()
+        // No audio files needed - MockWhisperKitProvider uses filename-based responses
         
         // Verify files exist
         let requiredFiles = [
