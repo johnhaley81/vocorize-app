@@ -48,6 +48,47 @@ extension TranscriptionClient: DependencyKey {
       getAvailableModels: { try await live.getAvailableModels() }
     )
   }
+  
+  /// Default test value that uses fast mock providers for unit tests
+  /// This ensures test performance while maintaining full API compatibility
+  static var testValue: Self {
+    return Self(
+      transcribe: { url, model, options, progressCallback in
+        // Fast mock transcription - simulate realistic progress
+        let progress = Progress(totalUnitCount: 100)
+        progressCallback(progress)
+        progress.completedUnitCount = 50
+        progressCallback(progress)
+        progress.completedUnitCount = 100
+        progressCallback(progress)
+        return "Mock transcription result for model \(model)"
+      },
+      downloadModel: { variant, progressCallback in
+        // Fast mock download - complete immediately
+        let progress = Progress(totalUnitCount: 100)
+        progressCallback(progress)
+        progress.completedUnitCount = 100
+        progressCallback(progress)
+      },
+      deleteModel: { _ in
+        // Mock deletion - no-op
+      },
+      isModelDownloaded: { _ in
+        // Mock models are always "downloaded" for testing convenience
+        return true
+      },
+      getRecommendedModels: {
+        return ModelSupport(
+          default: "tiny",
+          supported: ["tiny", "base", "small"],
+          disabled: []
+        )
+      },
+      getAvailableModels: {
+        return ["tiny", "base", "small", "medium"]
+      }
+    )
+  }
 }
 
 extension DependencyValues {

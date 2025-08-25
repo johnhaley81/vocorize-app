@@ -1,0 +1,94 @@
+{
+    "version": "1.0",
+    "description": "Mock file system paths for WhisperKit model storage during testing",
+    "basePaths": {
+        "whisperKitModels": "/tmp/VocorizeTests/WhisperKit/Models",
+        "mlxModels": "/tmp/VocorizeTests/MLX/Models",
+        "downloadCache": "/tmp/VocorizeTests/Cache",
+        "audioTemp": "/tmp/VocorizeTests/Audio"
+    },
+    "modelPaths": {
+        "openai_whisper-tiny": {
+            "modelPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-tiny",
+            "configPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-tiny/config.json",
+            "tokenizerPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-tiny/tokenizer.json",
+            "weightsPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-tiny/model.mlmodelc",
+            "metadataPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-tiny/metadata.json",
+            "exists": false,
+            "sizeOnDisk": 0
+        },
+        "openai_whisper-base": {
+            "modelPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-base",
+            "configPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-base/config.json",
+            "tokenizerPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-base/tokenizer.json",
+            "weightsPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-base/model.mlmodelc",
+            "metadataPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-base/metadata.json",
+            "exists": false,
+            "sizeOnDisk": 0
+        },
+        "openai_whisper-small": {
+            "modelPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-small",
+            "configPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-small/config.json",
+            "tokenizerPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-small/tokenizer.json",
+            "weightsPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-small/model.mlmodelc",
+            "metadataPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-small/metadata.json",
+            "exists": false,
+            "sizeOnDisk": 0
+        },
+        "openai_whisper-medium": {
+            "modelPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-medium",
+            "configPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-medium/config.json",
+            "tokenizerPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-medium/tokenizer.json",
+            "weightsPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-medium/model.mlmodelc",
+            "metadataPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-medium/metadata.json",
+            "exists": false,
+            "sizeOnDisk": 0
+        },
+        "openai_whisper-large-v3": {
+            "modelPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-large-v3",
+            "configPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-large-v3/config.json",
+            "tokenizerPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-large-v3/tokenizer.json",
+            "weightsPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-large-v3/model.mlmodelc",
+            "metadataPath": "/tmp/VocorizeTests/WhisperKit/Models/openai_whisper-large-v3/metadata.json",
+            "exists": false,
+            "sizeOnDisk": 0
+        },
+        "mlx-community/whisper-large-v3-turbo": {
+            "modelPath": "/tmp/VocorizeTests/MLX/Models/mlx-community--whisper-large-v3-turbo",
+            "configPath": "/tmp/VocorizeTests/MLX/Models/mlx-community--whisper-large-v3-turbo/config.json",
+            "tokenizerPath": "/tmp/VocorizeTests/MLX/Models/mlx-community--whisper-large-v3-turbo/tokenizer.json",
+            "weightsPath": "/tmp/VocorizeTests/MLX/Models/mlx-community--whisper-large-v3-turbo/model.safetensors",
+            "metadataPath": "/tmp/VocorizeTests/MLX/Models/mlx-community--whisper-large-v3-turbo/metadata.json",
+            "exists": false,
+            "sizeOnDisk": 0
+        }
+    },
+    "downloadUrls": {
+        "huggingFaceBase": "https://huggingface.co",
+        "mockServer": "http://localhost:8080/test-models",
+        "cdnFallback": "https://cdn.test.vocorize.com/models"
+    },
+    "testConfiguration": {
+        "mockFileSystem": true,
+        "simulateSlowDownloads": false,
+        "simulateNetworkErrors": false,
+        "maxConcurrentDownloads": 1,
+        "downloadTimeoutSeconds": 30,
+        "cleanupAfterTests": true,
+        "preserveDownloadedModels": false
+    },
+    "deviceLimitations": {
+        "lowMemoryDevice": {
+            "maxModelSize": "500MB",
+            "excludeModels": ["openai_whisper-large-v3", "openai_whisper-medium"]
+        },
+        "standardDevice": {
+            "maxModelSize": "2GB",
+            "excludeModels": []
+        },
+        "highEndDevice": {
+            "maxModelSize": "10GB",
+            "excludeModels": []
+        }
+    }
+}

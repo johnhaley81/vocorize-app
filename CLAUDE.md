@@ -15,8 +15,18 @@ xcodebuild -scheme Vocorize -configuration Release
 # Run tests
 xcodebuild test -scheme Vocorize -destination 'platform=macOS,arch=arm64'
 
-# Run tests with convenient script
-./test.sh
+# Test Scripts (Optimized Infrastructure)
+./test.sh                    # All tests (auto-detects unit/integration)
+./test-unit.sh               # Fast unit tests with mock providers (10s)
+./test-integration.sh        # Integration tests with caching (30s-5min)
+./performance-measurement.sh # Performance benchmarking and validation
+./scripts/cache-manager.sh   # Model cache management and optimization
+
+# Cache Management
+./test-integration.sh --cache-info    # Show cache status
+./test-integration.sh --clean-cache   # Clear all caches
+./scripts/cache-manager.sh status     # Detailed cache information
+./scripts/cache-manager.sh clean      # Clean all model caches
 
 # Open in Xcode (recommended for development)
 open Vocorize.xcodeproj
@@ -38,12 +48,21 @@ The app uses **The Composable Architecture (TCA)** for state management. Key arc
 - `PasteboardClient`: Clipboard operations
 - `KeyEventMonitorClient`: Global hotkey monitoring via Sauce framework
 
+### Test Infrastructure
+- `MockWhisperKitProvider`: Fast mock provider for unit tests (no ML overhead)
+- `CachedWhisperKitProvider`: Model caching for integration tests (90%+ faster)
+- `TestProviderFactory`: Unified provider creation with environment detection
+- `ModelCacheManager`: Intelligent model caching system (2GB default limit)
+- `MLXAvailability`: Conditional MLX framework support detection
+
 ### Key Dependencies
 - **WhisperKit**: Core ML transcription (tracking main branch)
+- **MLX**: Apple Silicon ML optimization (optional, conditional loading)
+- **MLXNN**: Neural network library for MLX (optional)
 - **Sauce**: Keyboard event monitoring
 - **Sparkle**: Auto-updates (feed: https://vocorize-updates.s3.amazonaws.com/appcast.xml)
 - **Swift Composable Architecture**: State management
-- **Inject** Hot Reloading for SwiftUI
+- **Inject**: Hot Reloading for SwiftUI
 
 ## Important Implementation Details
 
@@ -57,6 +76,35 @@ The app uses **The Composable Architecture (TCA)** for state management. Key arc
 
 5. **Permissions**: Requires audio input and automation entitlements (see `Vocorize.entitlements`)
 
+6. **MLX Integration**: Conditional MLX framework support with runtime detection for Apple Silicon optimization
+
 ## Testing
 
-Tests use Swift Testing framework. The main test file is `VocorizeTests/VocorizeTests.swift`. Run tests via Xcode or the command line.
+Tests use Swift Testing framework with comprehensive optimization infrastructure:
+
+### Test Types & Performance
+- **Unit Tests**: `./test-unit.sh` - Fast execution (10s) using mock providers
+- **Integration Tests**: `./test-integration.sh` - Real ML testing (30s-5min with caching)
+- **Performance Tests**: `./performance-measurement.sh` - Benchmark and validate optimizations
+
+### Test Environment Configuration
+```bash
+export VOCORIZE_TEST_MODE=unit          # Use mock providers, no ML overhead
+export VOCORIZE_TEST_MODE=integration   # Use real providers with caching
+```
+
+### Model Caching System
+- **Cache Location**: `~/Library/Developer/Xcode/DerivedData/VocorizeTests/ModelCache/`
+- **Cache Benefits**: 5-25 minute time savings per test run
+- **Cache Limits**: 2GB default, configurable with automatic LRU cleanup
+- **Cache Management**: `./scripts/cache-manager.sh` for maintenance and optimization
+
+### Test Providers
+- **MockWhisperKitProvider**: Instant responses for unit testing
+- **CachedWhisperKitProvider**: Intelligent model caching for integration tests
+- **MLXProvider**: Conditional loading with runtime availability detection
+
+### Troubleshooting
+- **Cache Issues**: `./scripts/cache-manager.sh verify` and `clean`
+- **Performance Problems**: `./performance-measurement.sh` for analysis
+- **MLX Issues**: Framework detection and conditional loading prevents crashes

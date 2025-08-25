@@ -1,0 +1,19 @@
+# MLX Integration Test Report
+Generated: Mon Aug 25 07:09:28 MST 2025
+Project: Vocorize
+Architecture: arm64
+macOS Version: 15.6
+Xcode Version: Xcode 16.4
+
+## Test Summary
+Total Tests: 4
+Passed: 4
+Failed: 0
+Success Rate: 100%
+
+## Package Information
+MLX Package: Found in Package.resolved
+MLX Version: 0.25.6
+
+## Detailed Log
+See mlx_test_output.log for detailed output
