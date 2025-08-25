@@ -1,6 +1,6 @@
 # Performance Monitoring and Benchmarking Guide
 
-> **Quick Start**: Run `./performance-measurement.sh` to get an instant performance report with actionable recommendations.
+> **Quick Start**: Run `VocorizeTests/scripts/performance-measurement.sh` to get an instant performance report with actionable recommendations.
 
 This guide explains the performance monitoring infrastructure in Vocorize, designed to track, measure, and validate test optimization improvements.
 
@@ -18,7 +18,7 @@ The performance monitoring system provides comprehensive tracking of test execut
 ### Core Components
 
 #### Performance Measurement Script
-**Location**: `./performance-measurement.sh`
+**Location**: `VocorizeTests/scripts/performance-measurement.sh`
 **Purpose**: Comprehensive performance benchmarking and validation
 
 **Features**:
@@ -109,7 +109,7 @@ Run comprehensive performance analysis:
 
 ```bash
 # Full performance measurement suite
-./performance-measurement.sh
+VocorizeTests/scripts/performance-measurement.sh
 
 # Generates detailed report with:
 # - Current vs baseline performance comparison
@@ -123,13 +123,13 @@ Integration with development workflow:
 
 ```bash
 # Pre-commit performance check
-git hook: ./performance-measurement.sh --quick
+git hook: VocorizeTests/scripts/performance-measurement.sh --quick
 
 # CI/CD performance validation
-CI pipeline: ./performance-measurement.sh --ci
+CI pipeline: VocorizeTests/scripts/performance-measurement.sh --ci
 
 # Scheduled performance monitoring  
-Cron: ./performance-measurement.sh --report-only
+Cron: VocorizeTests/scripts/performance-measurement.sh --report-only
 ```
 
 ### Performance Report Generation
@@ -258,7 +258,7 @@ Systematic approach to performance issues:
 # Performance issue investigation
 1. Check cache integrity: ./scripts/cache-manager.sh verify
 2. Clean corrupted cache: ./scripts/cache-manager.sh clean  
-3. Verify test infrastructure: ./test-unit.sh --verify
+3. Verify test infrastructure: VocorizeTests/scripts/test-unit.sh --verify
 4. Check system resources: disk space, memory, network
 5. Compare against known good baseline
 6. Analyze performance report for bottlenecks
@@ -366,7 +366,7 @@ Connect performance data with development workflow:
 echo $VOCORIZE_TEST_MODE  # Should be 'unit'
 
 # Verify mock provider selection
-./test-unit.sh --debug
+VocorizeTests/scripts/test-unit.sh --debug
 
 # Check for real provider usage in unit tests
 grep -r "WhisperKit" VocorizeTests/ --include="*Tests.swift"
@@ -390,7 +390,7 @@ export VOCORIZE_TEST_MODE=unit
 ./scripts/cache-manager.sh verify
 
 # Analyze cache hit/miss patterns  
-./test-integration.sh --cache-info
+VocorizeTests/scripts/test-integration.sh --cache-info
 
 # Check available disk space and I/O performance
 df -h
@@ -417,10 +417,10 @@ iostat -x 1 5
 top -o MEM
 
 # Check for memory leaks in test infrastructure
-instruments -t Leaks ./test-integration.sh
+instruments -t Leaks VocorizeTests/scripts/test-integration.sh
 
 # Analyze memory growth patterns
-./performance-measurement.sh --memory-focus
+VocorizeTests/scripts/performance-measurement.sh --memory-focus
 ```
 
 **Solutions**:

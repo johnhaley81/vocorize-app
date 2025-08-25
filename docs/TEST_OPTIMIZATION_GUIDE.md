@@ -80,25 +80,25 @@ if isMLXAvailable {
 ### Development Workflow
 ```bash
 # Fast iteration cycle (mock providers)
-./test-unit.sh                    # 10-30 seconds
+VocorizeTests/scripts/test-unit.sh                    # 10-30 seconds
 
 # Full validation (cached models)  
-./test-integration.sh             # 30s-2min after first run
+VocorizeTests/scripts/test-integration.sh             # 30s-2min after first run
 
 # Performance benchmarking
-./performance-measurement.sh      # Measure and validate improvements
+VocorizeTests/scripts/performance-measurement.sh      # Measure and validate improvements
 ```
 
 ### CI/CD Workflow
 ```bash
 # Warm cache (first CI run)
-./test-integration.sh --clean-cache --ci
+VocorizeTests/scripts/test-integration.sh --clean-cache --ci
 
 # Subsequent CI runs (cached)
-./test-integration.sh --ci         # 30s-2min execution
+VocorizeTests/scripts/test-integration.sh --ci         # 30s-2min execution
 
 # Performance validation
-./performance-measurement.sh       # Ensure targets met
+VocorizeTests/scripts/performance-measurement.sh       # Ensure targets met
 ```
 
 ## Environment Configuration
@@ -128,7 +128,7 @@ The test infrastructure automatically detects test type:
 ./scripts/cache-manager.sh status
 
 # Show integration test cache info
-./test-integration.sh --cache-info
+VocorizeTests/scripts/test-integration.sh --cache-info
 ```
 
 ### Maintenance Operations
@@ -149,7 +149,7 @@ The test infrastructure automatically detects test type:
 ./scripts/cache-manager.sh verify
 # If errors found:
 ./scripts/cache-manager.sh clean
-./test-integration.sh  # Rebuild cache
+VocorizeTests/scripts/test-integration.sh  # Rebuild cache
 
 # Cache size too large
 ./scripts/cache-manager.sh optimize
@@ -168,7 +168,7 @@ The test infrastructure tracks:
 ### Performance Validation
 ```bash
 # Comprehensive performance measurement
-./performance-measurement.sh
+VocorizeTests/scripts/performance-measurement.sh
 
 # Generates report with:
 # - Current vs target performance

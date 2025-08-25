@@ -349,7 +349,7 @@ Developers can use the same cache management locally:
 ./scripts/cache-manager.sh verify
 
 # Generate performance reports
-./performance-measurement.sh
+VocorizeTests/scripts/performance-measurement.sh
 ```
 
 ## 📋 Best Practices

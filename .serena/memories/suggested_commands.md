@@ -14,11 +14,6 @@ xcodebuild -scheme Vocorize -configuration Release
 xcodebuild -resolvePackageDependencies -project Vocorize.xcodeproj -scheme Vocorize
 ```
 
-### Test Build (Local, no notarization)
-```bash
-# Quick local build for testing
-./build-test.sh
-```
 
 ### Full Release Build (Production)
 ```bash
@@ -103,5 +98,5 @@ sw_vers
 
 ## Project-Specific Scripts
 - `build.sh` - Full production build with notarization
-- `build-test.sh` - Quick local test build
-- Both scripts handle dependencies, code signing, and packaging
+- `test.sh` - Main test runner with auto-detection
+- `VocorizeTests/scripts/` - Test-specific scripts

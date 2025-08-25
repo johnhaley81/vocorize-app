@@ -61,7 +61,7 @@ unit_tests:
   stage: test
   script:
     - export VOCORIZE_TEST_MODE=unit
-    - ./test-unit.sh
+    - VocorizeTests/scripts/test-unit.sh
   timeout: 5m  # Unit tests should complete in <5 minutes
 ```
 
@@ -71,7 +71,7 @@ integration_tests:
   stage: test
   script:
     - export VOCORIZE_TEST_MODE=integration
-    - ./test-integration.sh --ci
+    - VocorizeTests/scripts/test-integration.sh --ci
   timeout: 10m  # Integration tests with cache should complete in <10 minutes
   cache:
     policy: pull
@@ -85,7 +85,7 @@ integration_tests:
 performance_validation:
   stage: validate
   script:
-    - ./performance-measurement.sh --ci
+    - VocorizeTests/scripts/performance-measurement.sh --ci
     - if [ $PERFORMANCE_GRADE != "A" ]; then exit 1; fi
   artifacts:
     reports:
@@ -131,15 +131,15 @@ jobs:
     - name: Run Unit Tests
       run: |
         export VOCORIZE_TEST_MODE=unit
-        ./test-unit.sh
+        VocorizeTests/scripts/test-unit.sh
     
     - name: Run Integration Tests
       run: |
         export VOCORIZE_TEST_MODE=integration
-        timeout 600 ./test-integration.sh --ci
+        timeout 600 VocorizeTests/scripts/test-integration.sh --ci
     
     - name: Performance Validation
-      run: ./performance-measurement.sh --ci
+      run: VocorizeTests/scripts/performance-measurement.sh --ci
     
     - name: Upload Performance Reports
       uses: actions/upload-artifact@v4
@@ -179,7 +179,7 @@ unit_tests:
   stage: test
   script:
     - export VOCORIZE_TEST_MODE=unit
-    - timeout 300 ./test-unit.sh
+    - timeout 300 VocorizeTests/scripts/test-unit.sh
   artifacts:
     reports:
       junit: test_results_unit.xml
@@ -188,7 +188,7 @@ integration_tests:
   stage: test
   script:
     - export VOCORIZE_TEST_MODE=integration
-    - timeout 600 ./test-integration.sh --ci
+    - timeout 600 VocorizeTests/scripts/test-integration.sh --ci
   artifacts:
     reports:
       junit: test_results_integration.xml
@@ -198,7 +198,7 @@ integration_tests:
 performance_validation:
   stage: validate
   script:
-    - ./performance-measurement.sh --ci
+    - VocorizeTests/scripts/performance-measurement.sh --ci
     - |
       if [ $(grep "Performance Grade:" performance-reports/latest.md | grep -c "✅ EXCELLENT") -eq 0 ]; then
         echo "Performance validation failed"
@@ -231,7 +231,7 @@ stages:
     steps:
     - script: |
         export VOCORIZE_TEST_MODE=unit
-        ./test-unit.sh
+        VocorizeTests/scripts/test-unit.sh
       displayName: 'Run Unit Tests'
       timeoutInMinutes: 5
     
@@ -253,11 +253,11 @@ stages:
     
     - script: |
         export VOCORIZE_TEST_MODE=integration
-        timeout 600 ./test-integration.sh --ci
+        timeout 600 VocorizeTests/scripts/test-integration.sh --ci
       displayName: 'Run Integration Tests'
       timeoutInMinutes: 10
     
-    - script: ./performance-measurement.sh --ci
+    - script: VocorizeTests/scripts/performance-measurement.sh --ci
       displayName: 'Performance Validation'
       condition: always()
     
@@ -303,7 +303,7 @@ warmup_cache() {
     
     if [ "${cache_size%MB}" -lt 100 ]; then
         echo "Cache is empty or small, warming up..."
-        ./test-integration.sh --ci --timeout 1800  # Allow 30min for first run
+        VocorizeTests/scripts/test-integration.sh --ci --timeout 1800  # Allow 30min for first run
     else
         echo "Cache is warmed (${cache_size}), proceeding with normal tests"
     fi
@@ -362,7 +362,7 @@ Track performance trends across builds:
 ```bash
 # Performance trend tracking
 track_performance_trends() {
-    local current_performance=$(./performance-measurement.sh --json | jq '.overall_score')
+    local current_performance=$(VocorizeTests/scripts/performance-measurement.sh --json | jq '.overall_score')
     local baseline_performance=$(cat performance_baseline.json | jq '.overall_score')
     local degradation=$(echo "($baseline_performance - $current_performance) * 100 / $baseline_performance" | bc -l)
     
@@ -382,7 +382,7 @@ Integrate performance validation with CI quality gates:
 quality_gate:
   stage: validate
   script:
-    - ./performance-measurement.sh --ci
+    - VocorizeTests/scripts/performance-measurement.sh --ci
     - |
       PERFORMANCE_SCORE=$(cat performance-reports/latest.json | jq '.performance_score')
       if [ "$PERFORMANCE_SCORE" -lt 80 ]; then
@@ -492,15 +492,15 @@ parallel_tests:
       case $TEST_SUITE in
         unit)
           export VOCORIZE_TEST_MODE=unit
-          timeout 300 ./test-unit.sh
+          timeout 300 VocorizeTests/scripts/test-unit.sh
           ;;
         integration_cached)
           export VOCORIZE_TEST_MODE=integration
-          timeout 600 ./test-integration.sh --ci
+          timeout 600 VocorizeTests/scripts/test-integration.sh --ci
           ;;
         integration_clean)
           export VOCORIZE_TEST_MODE=integration
-          timeout 1800 ./test-integration.sh --ci --clean-cache
+          timeout 1800 VocorizeTests/scripts/test-integration.sh --ci --clean-cache
           ;;
       esac
 ```
@@ -575,7 +575,7 @@ integration_tests: 10m
 integration_tests_clean: 30m
 
 # Add progress monitoring
-./test-integration.sh --ci --verbose
+VocorizeTests/scripts/test-integration.sh --ci --verbose
 
 # Check for CI-specific issues
 # Network throttling

@@ -98,7 +98,7 @@ Practical guide for optimal cache management in Vocorize CI/CD workflows.
 ./.github/scripts/setup-cache.sh setup current-workflow --analytics-only
 
 # Generate performance report
-./performance-measurement.sh
+VocorizeTests/scripts/performance-measurement.sh
 ```
 
 ## 🛠️ Optimization Techniques
@@ -245,7 +245,7 @@ Implementation:
 ./.github/scripts/setup-cache.sh setup weekly-maintenance --cleanup-only
 
 # Monthly analysis  
-./performance-measurement.sh
+VocorizeTests/scripts/performance-measurement.sh
 ./scripts/generate-cache-analytics.sh --monthly-report
 ```
 
@@ -364,7 +364,7 @@ Workflow: PR Validation
 ```bash
 # Pre-warm critical caches during off-peak
 schedule_cache_warming() {
-    ./test-integration.sh --warm-cache-only
+    VocorizeTests/scripts/test-integration.sh --warm-cache-only
     ./.github/scripts/setup-cache.sh setup nightly-tests --pre-warm
 }
 
@@ -403,8 +403,8 @@ select_cache_strategy() {
 ### Scripts and Tools
 - **`./.github/scripts/setup-cache.sh`** - Intelligent cache setup
 - **`./scripts/cache-manager.sh`** - Local cache management
-- **`./performance-measurement.sh`** - Performance analytics
-- **`./test-integration.sh --cache-info`** - Cache status check
+- **`VocorizeTests/scripts/performance-measurement.sh`** - Performance analytics
+- **`VocorizeTests/scripts/test-integration.sh --cache-info`** - Cache status check
 
 ### Documentation
 - [Cache Optimization Strategy](CACHE_OPTIMIZATION_STRATEGY.md)

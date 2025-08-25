@@ -8,8 +8,8 @@
 
 ## Commands
 - `./test.sh` - All tests (auto-detects unit/integration)
-- `./test-unit.sh` - Fast mock tests (10s)
-- `./test-integration.sh` - Real ML tests with caching (30s-5min)
+- `VocorizeTests/scripts/test-unit.sh` - Fast mock tests (10s)
+- `VocorizeTests/scripts/test-integration.sh` - Real ML tests with caching (30s-5min)
 - `xcodebuild -scheme Vocorize -configuration Release` - Build app
 - `open Vocorize.xcodeproj` - Xcode development
 
@@ -31,5 +31,5 @@
 - **Environment**: `VOCORIZE_TEST_MODE=unit|integration`
 - **Cache**: `~/Library/Developer/Xcode/DerivedData/VocorizeTests/ModelCache/` (2GB limit, LRU cleanup)
 - **Providers**: Mock (instant) vs Cached (90%+ faster integration)
-- **Performance**: `./performance-measurement.sh` for benchmarking
+- **Performance**: `VocorizeTests/scripts/performance-measurement.sh` for benchmarking
 - **Cache Management**: `./scripts/cache-manager.sh status|clean|verify`

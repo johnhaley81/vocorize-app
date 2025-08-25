@@ -90,7 +90,7 @@
 - [ ] Edge cases covered
 
 ### Integration Testing
-- [ ] Build script tests (`./build-test.sh`)
+- [ ] Build verification (`./build.sh` or Xcode)
 - [ ] Manual testing of hotkey functionality
 - [ ] Audio recording and transcription flow
 - [ ] Permission handling verification

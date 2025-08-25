@@ -47,24 +47,11 @@ APPLE_ID_PASSWORD=your-app-specific-password
 ### 2. Make Scripts Executable
 ```bash
 chmod +x build.sh
-chmod +x build-test.sh
 ```
 
 ## Building
 
-### Quick Test Build (No Notarization)
-For testing builds without notarization:
-
-```bash
-./build-test.sh
-```
-
-This will:
-- Build and sign the app
-- Create DMG and ZIP files
-- Place them in `build/distribution/`
-
-### Full Release Build (With Notarization)
+### Full Release Build
 For production releases with notarization:
 
 ```bash

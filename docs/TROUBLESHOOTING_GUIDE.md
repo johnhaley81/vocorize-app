@@ -1,6 +1,6 @@
 # Test Infrastructure Troubleshooting Guide
 
-> **Emergency Fix**: Most issues (80%+) are resolved by: `./scripts/cache-manager.sh clean && export VOCORIZE_TEST_MODE=unit && ./test-unit.sh`
+> **Emergency Fix**: Most issues (80%+) are resolved by: `./scripts/cache-manager.sh clean && export VOCORIZE_TEST_MODE=unit && VocorizeTests/scripts/test-unit.sh`
 
 This guide provides systematic troubleshooting procedures for Vocorize's optimized test infrastructure, covering common issues and their solutions.
 
@@ -11,14 +11,14 @@ This guide provides systematic troubleshooting procedures for Vocorize's optimiz
 # Clean cache and force unit test mode
 ./scripts/cache-manager.sh clean
 export VOCORIZE_TEST_MODE=unit
-./test-unit.sh  # Should complete in <30 seconds
+VocorizeTests/scripts/test-unit.sh  # Should complete in <30 seconds
 ```
 
 ### Slow Tests - Environment Check
 ```bash
 # Verify mock providers are being used
 echo $VOCORIZE_TEST_MODE  # Should be 'unit' for fast tests
-./test-unit.sh --debug | head -20  # Check for MockWhisperKitProvider
+VocorizeTests/scripts/test-unit.sh --debug | head -20  # Check for MockWhisperKitProvider
 ```
 
 ### CI/CD Issues - Cache Check  
@@ -46,7 +46,7 @@ The test infrastructure includes multiple components that can encounter various 
 ```bash
 # Quick system health check
 ./scripts/cache-manager.sh status              # Cache status
-./test-unit.sh --verify                        # Mock infrastructure check
+VocorizeTests/scripts/test-unit.sh --verify                        # Mock infrastructure check
 echo $VOCORIZE_TEST_MODE                       # Environment check
 xcodebuild -showsdks | grep macOS              # Xcode availability
 ```
@@ -72,7 +72,7 @@ echo $VOCORIZE_TEST_MODE
 # Expected: 'unit' for unit tests
 
 # Verify mock provider selection
-./test-unit.sh --debug 2>&1 | grep -i provider
+VocorizeTests/scripts/test-unit.sh --debug 2>&1 | grep -i provider
 # Should show MockWhisperKitProvider usage
 
 # Check for hardcoded real providers in tests
@@ -100,7 +100,7 @@ cat VocorizeTests/Support/TestProviderFactory.swift
 ```bash
 # Enable mock provider logging
 export VOCORIZE_MOCK_DEBUG=true
-./test-unit.sh
+VocorizeTests/scripts/test-unit.sh
 
 # Check mock configuration
 grep -A 10 -B 10 "MockConfiguration" VocorizeTests/Support/MockProviders/
@@ -122,12 +122,12 @@ grep -A 10 -B 10 "MockConfiguration" VocorizeTests/Support/MockProviders/
 **Diagnostic Steps**:
 ```bash
 # Check mock provider performance
-time ./test-unit.sh
+time VocorizeTests/scripts/test-unit.sh
 # Should complete in <30 seconds
 
 # Monitor memory usage during tests
 top -o MEM -n 10 &
-./test-unit.sh
+VocorizeTests/scripts/test-unit.sh
 kill %1
 ```
 
@@ -161,7 +161,7 @@ cat ~/Library/Developer/Xcode/DerivedData/VocorizeTests/ModelCache/cache_metadat
 ```bash
 # Clean and rebuild cache if corrupted
 ./scripts/cache-manager.sh clean
-./test-integration.sh  # Repopulate cache
+VocorizeTests/scripts/test-integration.sh  # Repopulate cache
 
 # Fix permissions if needed
 chmod -R 755 ~/Library/Developer/Xcode/DerivedData/VocorizeTests/ModelCache/
@@ -194,7 +194,7 @@ print('Metadata valid, contains', len(data), 'entries')
 ```bash
 # Nuclear option: complete cache rebuild
 ./scripts/cache-manager.sh clean
-./test-integration.sh --clean-cache
+VocorizeTests/scripts/test-integration.sh --clean-cache
 
 # Selective model removal
 # Edit cache_metadata.json to remove corrupted entries
@@ -268,7 +268,7 @@ ls -la ~/Library/Logs/DiagnosticReports/Vocorize*
 
 # Run with MLX debugging
 export MLX_DEBUG=1
-./test-integration.sh
+VocorizeTests/scripts/test-integration.sh
 
 # Verify conditional loading
 grep -n "MLXAvailability" VocorizeTests/Support/TestProviderFactory.swift
@@ -290,7 +290,7 @@ grep -n "MLXAvailability" VocorizeTests/Support/TestProviderFactory.swift
 **Diagnostic Steps**:
 ```bash
 # Run comprehensive performance measurement
-./performance-measurement.sh
+VocorizeTests/scripts/performance-measurement.sh
 
 # Check for resource constraints
 top -o CPU -n 10
@@ -298,8 +298,8 @@ iostat -x 1 5
 df -h
 
 # Verify test infrastructure is working correctly
-./test-unit.sh --debug
-./test-integration.sh --cache-info
+VocorizeTests/scripts/test-unit.sh --debug
+VocorizeTests/scripts/test-integration.sh --cache-info
 ```
 
 **Solutions**:
@@ -320,7 +320,7 @@ cat performance-reports/latest.md
 ```bash
 # Compare against baseline
 cat performance-reports/performance_baseline.json
-./performance-measurement.sh --compare-baseline
+VocorizeTests/scripts/performance-measurement.sh --compare-baseline
 
 # Check for recent changes
 git log --oneline -10
@@ -328,7 +328,7 @@ git diff HEAD~5 -- VocorizeTests/
 
 # Verify test infrastructure integrity
 ./scripts/cache-manager.sh verify
-./test-unit.sh --verify
+VocorizeTests/scripts/test-unit.sh --verify
 ```
 
 **Solutions**:
@@ -418,7 +418,7 @@ curl -I https://huggingface.co/openai/whisper-tiny
 nslookup huggingface.co
 
 # Test from integration test context
-./test-integration.sh --clean-cache --debug
+VocorizeTests/scripts/test-integration.sh --clean-cache --debug
 ```
 
 **Solutions**:
@@ -490,11 +490,11 @@ xcrun simctl delete unavailable
 ```bash
 # Monitor memory usage during tests
 top -o MEM &
-./test-integration.sh
+VocorizeTests/scripts/test-integration.sh
 kill %1
 
 # Check for memory leaks
-instruments -t Leaks -D /tmp/leaks_trace.trace ./test-integration.sh
+instruments -t Leaks -D /tmp/leaks_trace.trace VocorizeTests/scripts/test-integration.sh
 ```
 
 **Solutions**:
@@ -523,7 +523,7 @@ export VOCORIZE_CACHE_DEBUG=true
 export VOCORIZE_PERFORMANCE_DEBUG=true
 
 # Run with maximum logging
-./test-integration.sh --debug --verbose > debug_output.log 2>&1
+VocorizeTests/scripts/test-integration.sh --debug --verbose > debug_output.log 2>&1
 ```
 
 ### Performance Profiling
@@ -531,13 +531,13 @@ Profile test infrastructure performance:
 
 ```bash
 # Profile unit tests
-instruments -t "Time Profiler" ./test-unit.sh
+instruments -t "Time Profiler" VocorizeTests/scripts/test-unit.sh
 
 # Profile integration tests
-instruments -t "Time Profiler" ./test-integration.sh
+instruments -t "Time Profiler" VocorizeTests/scripts/test-integration.sh
 
 # Profile memory usage
-instruments -t "Allocations" ./test-integration.sh
+instruments -t "Allocations" VocorizeTests/scripts/test-integration.sh
 ```
 
 ### System Diagnostics
@@ -574,9 +574,9 @@ unset VOCORIZE_CACHE_DIR
 unset VOCORIZE_MOCK_DEBUG
 
 # Rebuild from scratch
-./test-unit.sh                    # Should work with mocks
-./test-integration.sh --clean-cache  # Rebuild cache
-./performance-measurement.sh      # Verify performance
+VocorizeTests/scripts/test-unit.sh                    # Should work with mocks
+VocorizeTests/scripts/test-integration.sh --clean-cache  # Rebuild cache
+VocorizeTests/scripts/performance-measurement.sh      # Verify performance
 ```
 
 ### Restore from Backup
@@ -591,7 +591,7 @@ cp /path/to/performance_baseline_backup.json performance-reports/performance_bas
 
 # Verify restoration
 ./scripts/cache-manager.sh verify
-./performance-measurement.sh --baseline-check
+VocorizeTests/scripts/performance-measurement.sh --baseline-check
 ```
 
 ## Prevention Strategies
@@ -609,7 +609,7 @@ Implement regular maintenance procedures:
 ./scripts/cache-manager.sh verify
 
 # Performance monitoring
-./performance-measurement.sh --report-only
+VocorizeTests/scripts/performance-measurement.sh --report-only
 
 # System cleanup
 rm -rf /tmp/vocorize_test_*
@@ -627,7 +627,7 @@ Set up proactive monitoring:
 #!/bin/bash
 # monitor_performance.sh
 
-PERFORMANCE_SCORE=$(./performance-measurement.sh --json | jq '.performance_score')
+PERFORMANCE_SCORE=$(VocorizeTests/scripts/performance-measurement.sh --json | jq '.performance_score')
 
 if [ "$PERFORMANCE_SCORE" -lt 80 ]; then
     echo "Performance degradation detected: $PERFORMANCE_SCORE/100"
@@ -665,7 +665,7 @@ echo $PATH
 
 # Test infrastructure status
 ./scripts/cache-manager.sh status
-./performance-measurement.sh --status
+VocorizeTests/scripts/performance-measurement.sh --status
 
 # Error logs and outputs
 # Include relevant log files and error messages
