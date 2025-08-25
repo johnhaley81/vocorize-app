@@ -149,7 +149,7 @@ struct WhisperKitIntegrationTests {
         let modelName = "openai_whisper-tiny"
         
         // Ensure model is downloaded first
-        if !await provider.isModelDownloaded(modelName) {
+        if !(await provider.isModelDownloaded(modelName)) {
             try await provider.downloadModel(modelName) { _ in }
         }
         
@@ -175,7 +175,7 @@ struct WhisperKitIntegrationTests {
         
         // Ensure both models are downloaded
         for model in [firstModel, secondModel] {
-            if !await provider.isModelDownloaded(model) {
+            if !(await provider.isModelDownloaded(model)) {
                 try await provider.downloadModel(model) { _ in }
             }
         }
@@ -226,7 +226,7 @@ struct WhisperKitIntegrationTests {
         defer { try? FileManager.default.removeItem(at: audioURL) }
         
         // Ensure model is downloaded and loaded
-        if !await provider.isModelDownloaded(modelName) {
+        if !(await provider.isModelDownloaded(modelName)) {
             try await provider.downloadModel(modelName) { _ in }
         }
         _ = try await provider.loadModelIntoMemory(modelName)
@@ -262,7 +262,7 @@ struct WhisperKitIntegrationTests {
         defer { try? FileManager.default.removeItem(at: audioURL) }
         
         // Ensure model is downloaded but NOT loaded
-        if !await provider.isModelDownloaded(modelName) {
+        if !(await provider.isModelDownloaded(modelName)) {
             try await provider.downloadModel(modelName) { _ in }
         }
         
@@ -298,7 +298,7 @@ struct WhisperKitIntegrationTests {
         defer { try? FileManager.default.removeItem(at: audioURL) }
         
         // Setup model
-        if !await provider.isModelDownloaded(modelName) {
+        if !(await provider.isModelDownloaded(modelName)) {
             try await provider.downloadModel(modelName) { _ in }
         }
         _ = try await provider.loadModelIntoMemory(modelName)
@@ -339,7 +339,7 @@ struct WhisperKitIntegrationTests {
         let modelName = "openai_whisper-tiny"
         
         // Ensure model exists and is loaded
-        if !await provider.isModelDownloaded(modelName) {
+        if !(await provider.isModelDownloaded(modelName)) {
             try await provider.downloadModel(modelName) { _ in }
         }
         _ = try await provider.loadModelIntoMemory(modelName)
@@ -492,7 +492,7 @@ struct WhisperKitIntegrationTests {
         defer { try? FileManager.default.removeItem(at: audioURL) }
         
         // Setup model
-        if !await provider.isModelDownloaded(modelName) {
+        if !(await provider.isModelDownloaded(modelName)) {
             try await provider.downloadModel(modelName) { _ in }
         }
         _ = try await provider.loadModelIntoMemory(modelName)
@@ -748,7 +748,7 @@ extension WhisperKitIntegrationTests {
         let modelName = "openai_whisper-tiny"
         
         // Ensure model is cached (download if needed)
-        if !await provider.isModelDownloaded(modelName) {
+        if !(await provider.isModelDownloaded(modelName)) {
             try await provider.downloadModel(modelName) { _ in }
         }
         
