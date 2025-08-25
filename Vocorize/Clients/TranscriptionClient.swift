@@ -80,9 +80,16 @@ actor TranscriptionClientLive {
     let whisperKitProvider = WhisperKitProvider()
     await factory.registerProvider(whisperKitProvider, for: .whisperKit)
     
-    // Note: MLX provider would be registered here when available
-    // let mlxProvider = MLXProvider()
-    // await factory.registerProvider(mlxProvider, for: .mlx)
+    // Register MLX provider conditionally based on availability
+    if MLXAvailability.isAvailable {
+      // MLX provider will be implemented in next issue
+      // For now, log that MLX is available for future registration
+      print("✅ MLX framework is available for future provider registration")
+    } else {
+      let compatInfo = MLXAvailability.compatibilityInfo
+      let statusMessage = generateMLXStatusMessage(from: compatInfo)
+      print("⚠️ MLX framework not available: \(statusMessage)")
+    }
     
     isInitialized = true
   }
@@ -273,5 +280,32 @@ actor TranscriptionClientLive {
   private func getProviderByType(_ providerType: TranscriptionProviderType) async -> (any TranscriptionProvider)? {
     let allProviders = await factory.getAllRegisteredProviders()
     return allProviders.first { type(of: $0).providerType == providerType }
+  }
+  
+  /// Generates a human-readable status message from MLX compatibility info
+  private func generateMLXStatusMessage(from compatInfo: [String: Any]) -> String {
+    var reasons: [String] = []
+    
+    if let frameworkAvailable = compatInfo["framework_available"] as? Bool, !frameworkAvailable {
+      reasons.append("framework not integrated")
+    }
+    
+    if let productsAvailable = compatInfo["products_available"] as? Bool, !productsAvailable {
+      reasons.append("MLX products not available")
+    }
+    
+    if let versionCompatible = compatInfo["version_compatible"] as? Bool, !versionCompatible {
+      reasons.append("incompatible version")
+    }
+    
+    if let systemCompatible = compatInfo["system_compatible"] as? Bool, !systemCompatible {
+      if let architecture = compatInfo["architecture"] as? String {
+        reasons.append("requires Apple Silicon (current: \(architecture))")
+      } else {
+        reasons.append("requires Apple Silicon")
+      }
+    }
+    
+    return reasons.isEmpty ? "unknown compatibility issue" : reasons.joined(separator: ", ")
   }
 }
