@@ -213,6 +213,7 @@
 				476BAD3C2D47E7880088C61F /* XCRemoteSwiftPackageReference "Sparkle" */,
 				B5045C952D78DED500D0A119 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				47C08AB42DE9F61B00564AE6 /* XCRemoteSwiftPackageReference "Inject" */,
+				47D1A3F82DE9F71C00AB1234 /* XCRemoteSwiftPackageReference "mlx-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 47E05DEF2D444EC600D26DA6 /* Products */;
@@ -588,6 +589,14 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.4.1;
+			};
+		};
+		47D1A3F82DE9F71C00AB1234 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.10.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
