@@ -551,6 +551,12 @@ actor MLXProvider: TranscriptionProvider {
     
     /// Maps internal model names to Hugging Face repository IDs
     private func mapModelNameToRepoId(_ modelName: String) -> String {
+        // If the model name already contains the repository path, use it directly
+        if modelName.contains("/") {
+            return modelName
+        }
+        
+        // Otherwise, map simple names to full repository paths
         switch modelName {
         case "whisper-tiny-mlx":
             return "mlx-community/whisper-tiny-mlx"
@@ -563,6 +569,11 @@ actor MLXProvider: TranscriptionProvider {
         case "whisper-large-v3-turbo":
             return "mlx-community/whisper-large-v3-turbo"
         default:
+            // If it looks like an MLX model name, try to map it
+            if modelName.hasPrefix("mlx-community/") {
+                return modelName
+            }
+            
             // Default to base model if unknown
             return "mlx-community/whisper-base-mlx"
         }

@@ -316,22 +316,33 @@ public actor HuggingFaceClient {
         }
         
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("MLX-Community-Whisper/1.0", forHTTPHeaderField: "User-Agent")
         
         do {
+            logger.debug("Requesting metadata from URL: \(url)")
             let (data, response) = try await urlSession.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw HuggingFaceError.invalidResponse("Invalid response type")
             }
             
+            logger.debug("Received HTTP status: \(httpResponse.statusCode)")
+            
             try validateHTTPResponse(httpResponse, for: repoId)
+            
+            // Log the raw response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                logger.debug("API Response for \(repoId): \(String(responseString.prefix(500)))...")
+            }
             
             return try parseModelMetadata(from: data, repoId: repoId)
             
         } catch let error as HuggingFaceError {
+            logger.error("HuggingFace error for \(repoId): \(error.localizedDescription)")
             throw error
         } catch {
-            throw HuggingFaceError.networkError("Failed to fetch metadata: \(error.localizedDescription)")
+            logger.error("Network error for \(repoId): \(error.localizedDescription)")
+            throw HuggingFaceError.networkError("Failed to fetch metadata for \(repoId): \(error.localizedDescription)")
         }
     }
     
@@ -719,30 +730,95 @@ public actor HuggingFaceClient {
     
     /// Parses model files from metadata response
     private func parseModelFiles(from json: [String: Any], repoId: String) throws -> [ModelFile] {
-        // This is a simplified implementation
-        // In a real implementation, you would parse the actual file list from the API response
+        // For MLX models, we need specific files that are typically in MLX repositories
+        // We'll use the HuggingFace files API to get the actual file listing
         
         var files: [ModelFile] = []
         
-        // Add required files
+        // Parse siblings (files) array from the API response if available
+        if let siblings = json["siblings"] as? [[String: Any]] {
+            for sibling in siblings {
+                guard let filename = sibling["rfilename"] as? String,
+                      let size = sibling["size"] as? Int64 else {
+                    continue
+                }
+                
+                // Only include files that MLX models typically need
+                if isMLXModelFile(filename) {
+                    files.append(ModelFile(
+                        name: filename,
+                        size: size,
+                        url: "\(Self.hubBaseURL)/\(repoId)/resolve/main/\(filename)",
+                        isRequired: isRequiredMLXFile(filename)
+                    ))
+                }
+            }
+        }
+        
+        // If no files found in siblings, fall back to standard MLX files
+        if files.isEmpty {
+            files = createStandardMLXFiles(repoId: repoId)
+        }
+        
+        // Ensure we have at least some required files
+        guard !files.filter({ $0.isRequired }).isEmpty else {
+            throw HuggingFaceError.modelNotFound("No required MLX model files found in repository: \(repoId)")
+        }
+        
+        return files
+    }
+    
+    /// Determines if a file is relevant for MLX models
+    private func isMLXModelFile(_ filename: String) -> Bool {
+        let lowercased = filename.lowercased()
+        
+        // MLX models typically have these files
+        return lowercased.hasSuffix(".safetensors") ||
+               lowercased.hasSuffix(".json") ||
+               lowercased.hasSuffix(".txt") ||
+               lowercased == "config.json" ||
+               lowercased == "tokenizer.json" ||
+               lowercased == "merges.txt" ||
+               lowercased == "vocab.json" ||
+               lowercased == "special_tokens_map.json" ||
+               lowercased == "tokenizer_config.json" ||
+               lowercased.contains("model") ||
+               lowercased.contains("weight")
+    }
+    
+    /// Determines if a file is required for MLX model operation
+    private func isRequiredMLXFile(_ filename: String) -> Bool {
+        let lowercased = filename.lowercased()
+        
+        // Core files that MLX models need to function
+        return lowercased == "config.json" ||
+               lowercased.hasSuffix(".safetensors") ||
+               lowercased == "tokenizer.json"
+    }
+    
+    /// Creates standard MLX files when API doesn't provide file listing
+    private func createStandardMLXFiles(repoId: String) -> [ModelFile] {
+        var files: [ModelFile] = []
+        
+        // Essential files for MLX Whisper models
         files.append(ModelFile(
             name: "config.json",
-            size: 1024, // Estimated size
+            size: 2048,
             url: "\(Self.hubBaseURL)/\(repoId)/resolve/main/config.json"
         ))
         
         files.append(ModelFile(
-            name: "tokenizer.json",
-            size: 2048, // Estimated size
+            name: "tokenizer.json", 
+            size: 2_000_000, // ~2MB typical tokenizer size
             url: "\(Self.hubBaseURL)/\(repoId)/resolve/main/tokenizer.json"
         ))
         
-        // Add model files based on repository name
+        // MLX models often have weights in safetensors format
         let modelSize = estimateModelFileSize(repoId: repoId)
         files.append(ModelFile(
-            name: "model.safetensors",
+            name: "weights.safetensors",
             size: modelSize,
-            url: "\(Self.hubBaseURL)/\(repoId)/resolve/main/model.safetensors"
+            url: "\(Self.hubBaseURL)/\(repoId)/resolve/main/weights.safetensors"
         ))
         
         return files
