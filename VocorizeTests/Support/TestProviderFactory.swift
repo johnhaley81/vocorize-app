@@ -87,10 +87,16 @@ public actor TestProviderFactory {
         let healthCheck = await availability.performMLXHealthCheck()
         
         if healthCheck.isHealthy {
-            // TODO: Register real MLX provider when implemented
-            print("✅ MLX framework fully functional - would register real MLX provider")
-            let mockMLXProvider = MockMLXProvider()
-            await factory.registerProvider(mockMLXProvider, for: .mlx)
+            // Register real MLX provider when available
+            if #available(macOS 13.0, *) {
+                print("✅ MLX framework fully functional - registering real MLX provider")
+                let realMLXProvider = MLXProvider()
+                await factory.registerProvider(realMLXProvider, for: .mlx)
+            } else {
+                print("⚠️ MLX requires macOS 13.0+ - using mock provider")
+                let mockMLXProvider = MockMLXProvider()
+                await factory.registerProvider(mockMLXProvider, for: .mlx)
+            }
         } else {
             print("⚠️ MLX not fully functional: \(healthCheck.errors.joined(separator: ", "))")
             print("   Using mock MLX provider for integration tests")
@@ -284,9 +290,14 @@ extension TestProviderFactory {
         let healthCheck = await availability.performMLXHealthCheck()
         
         if healthCheck.isHealthy {
-            // TODO: Return real MLX provider when implemented
-            print("📝 MLX available but real provider not implemented, using mock")
-            return MockMLXProvider()
+            // Return real MLX provider when available
+            if #available(macOS 13.0, *) {
+                print("✅ MLX available - returning real MLX provider")
+                return MLXProvider()
+            } else {
+                print("⚠️ MLX requires macOS 13.0+ - using mock provider")
+                return MockMLXProvider()
+            }
         } else {
             print("⚠️ MLX not available, using mock provider for tests")
             return MockMLXProvider()

@@ -11,6 +11,11 @@ import DependenciesMacros
 import Foundation
 import WhisperKit
 
+#if canImport(MLX) && canImport(MLXNN)
+import MLX
+import MLXNN
+#endif
+
 /// A client that downloads and loads WhisperKit models, then transcribes audio files using the loaded model.
 /// Exposes progress callbacks to report overall download-and-load percentage and transcription progress.
 @DependencyClient
@@ -117,20 +122,45 @@ actor TranscriptionClientLive {
   private func ensureInitialized() async {
     guard !isInitialized else { return }
     
+    print("🚀 [DEBUG] Initializing transcription providers...")
+    
     // Register WhisperKit provider
     let whisperKitProvider = WhisperKitProvider()
     await factory.registerProvider(whisperKitProvider, for: .whisperKit)
+    print("✅ [DEBUG] WhisperKit provider registered successfully")
     
     // Register MLX provider conditionally based on availability
+    print("🔍 [DEBUG] Checking MLX availability...")
+    print("🔍 [DEBUG] MLXAvailability.isAvailable: \(MLXAvailability.isAvailable)")
+    
     if MLXAvailability.isAvailable {
-      // MLX provider will be implemented in next issue
-      // For now, log that MLX is available for future registration
-      print("✅ MLX framework is available for future provider registration")
+      if #available(macOS 13.0, *) {
+        print("✅ [DEBUG] macOS version check passed (13.0+)")
+#if canImport(MLX) && canImport(MLXNN)
+        print("✅ [DEBUG] MLX frameworks available at compile time")
+        do {
+          let mlxProvider = MLXProvider()
+          await factory.registerProvider(mlxProvider, for: .mlx)
+          print("✅ [DEBUG] MLX provider registered successfully")
+        } catch {
+          print("❌ [DEBUG] MLX provider registration failed: \(error.localizedDescription)")
+        }
+#else
+        print("❌ [DEBUG] MLX frameworks not available at compile time")
+#endif
+      } else {
+        print("❌ [DEBUG] MLX requires macOS 13.0 or later (current version insufficient)")
+      }
     } else {
       let compatInfo = MLXAvailability.compatibilityInfo
       let statusMessage = generateMLXStatusMessage(from: compatInfo)
-      print("⚠️ MLX framework not available: \(statusMessage)")
+      print("❌ [DEBUG] MLX framework not available: \(statusMessage)")
+      print("🔍 [DEBUG] MLX compatibility details: \(compatInfo)")
     }
+    
+    // Show final registration status
+    let registeredTypes = await factory.getAllRegisteredProviderTypes()
+    print("📋 [DEBUG] Final registered provider types: \(registeredTypes.map { $0.rawValue })")
     
     isInitialized = true
   }
@@ -266,6 +296,12 @@ actor TranscriptionClientLive {
     
     let (providerModelName, provider) = try await resolveModelAndProvider(model)
     
+    // Ensure MLX models are loaded into memory before transcription
+    if let mlxProvider = provider as? MLXProvider,
+       !(await mlxProvider.isModelLoadedInMemory(providerModelName)) {
+      _ = try await mlxProvider.loadModelIntoMemory(providerModelName)
+    }
+    
     return try await provider.transcribe(
       audioURL: url,
       modelName: providerModelName,
@@ -277,12 +313,15 @@ actor TranscriptionClientLive {
   // MARK: - Private Helpers
   
   /// Resolves a model name to the appropriate provider and internal model name
-  /// Supports both provider-prefixed formats (e.g., "whisperkit:tiny") and legacy formats (e.g., "tiny")
+  /// Supports both provider-prefixed formats (e.g., "whisperkit:tiny") and intelligent routing for MLX models
   private func resolveModelAndProvider(_ modelName: String) async throws -> (String, any TranscriptionProvider) {
+    print("🔍 [DEBUG] Resolving model '\(modelName)' to appropriate provider...")
+    
     // Check if model name contains provider prefix
     if modelName.contains(":") {
       let components = modelName.split(separator: ":", maxSplits: 1)
       guard components.count == 2 else {
+        print("❌ [DEBUG] Invalid prefixed model format: '\(modelName)'")
         throw TranscriptionProviderFactoryError.invalidModelName(modelName)
       }
       
@@ -290,30 +329,43 @@ actor TranscriptionClientLive {
       let internalModelName = String(components[1])
       
       guard let providerType = TranscriptionProviderType(rawValue: providerString) else {
+        print("❌ [DEBUG] Unknown provider type: '\(providerString)' in model '\(modelName)'")
         throw TranscriptionProviderFactoryError.invalidModelName(modelName)
       }
       
       guard await factory.isProviderRegistered(providerType) else {
+        print("❌ [DEBUG] Provider '\(providerType.rawValue)' not registered for model '\(modelName)'")
         throw TranscriptionProviderFactoryError.providerNotRegistered(providerType)
       }
       
       // Get provider directly by type instead of using getProviderForModel
       guard let provider = await getProviderByType(providerType) else {
+        print("❌ [DEBUG] Failed to get provider instance for type '\(providerType.rawValue)'")
         throw TranscriptionProviderFactoryError.providerNotRegistered(providerType)
       }
       
+      print("✅ [DEBUG] Model '\(modelName)' routed to \(providerType.rawValue) provider (explicit prefix)")
       return (internalModelName, provider)
     } else {
-      // Legacy format - default to WhisperKit
-      guard await factory.isProviderRegistered(.whisperKit) else {
-        throw TranscriptionProviderFactoryError.providerNotRegistered(.whisperKit)
+      // Use smart routing to determine the correct provider based on model name patterns
+      print("🧠 [DEBUG] Using smart routing for model '\(modelName)'...")
+      
+      // Show which provider type the factory recommends
+      if let recommendedType = await factory.getProviderTypeForModel(modelName) {
+        print("🎯 [DEBUG] Factory recommends provider type: \(recommendedType.rawValue) for model '\(modelName)'")
+      } else {
+        print("❓ [DEBUG] Factory could not determine provider type for model '\(modelName)'")
       }
       
-      guard let provider = await getProviderByType(.whisperKit) else {
-        throw TranscriptionProviderFactoryError.providerNotRegistered(.whisperKit)
+      do {
+        let provider = try await factory.getProviderForModel(modelName)
+        let providerTypeName = type(of: provider).providerType.rawValue
+        print("✅ [DEBUG] Model '\(modelName)' routed to \(providerTypeName) provider (smart routing)")
+        return (modelName, provider)
+      } catch {
+        print("❌ [DEBUG] Smart routing failed for model '\(modelName)': \(error.localizedDescription)")
+        throw error
       }
-      
-      return (modelName, provider)
     }
   }
   

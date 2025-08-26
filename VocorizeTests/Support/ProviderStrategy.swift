@@ -75,9 +75,14 @@ public actor IntegrationProviderStrategy: ProviderStrategy {
         let healthCheck = await availability.performMLXHealthCheck()
         
         if healthCheck.isHealthy {
-            // TODO: Return real MLX provider when implemented
-            print("📝 MLX available but real provider not implemented, using mock")
-            return MockMLXProvider()
+            // Return real MLX provider when available
+            if #available(macOS 13.0, *) {
+                print("✅ MLX available - returning real MLX provider")
+                return MLXProvider()
+            } else {
+                print("⚠️ MLX requires macOS 13.0+ - using mock provider")
+                return MockMLXProvider()
+            }
         } else {
             print("⚠️ MLX not available, using mock provider for integration tests")
             return MockMLXProvider()
