@@ -627,9 +627,18 @@ public actor HuggingFaceClient {
             
             fileHandle.closeFile()
             
-            // Verify file size
-            guard bytesDownloaded == file.size else {
-                throw HuggingFaceError.downloadFailed(file.name, "Size mismatch: expected \(file.size), got \(bytesDownloaded)")
+            // Skip size validation for small config files since we use estimates, not real sizes
+            let isSmallConfigFile = file.name.hasSuffix(".json") && file.size < 5000
+            
+            if isSmallConfigFile {
+                print("✅ [DEBUG] Downloaded \(file.name): \(bytesDownloaded) bytes (skipping size validation for config file)")
+            } else {
+                // Strict validation for large model files where size matters
+                guard bytesDownloaded == file.size else {
+                    print("❌ [DEBUG] Size validation failed for \(file.name): expected \(file.size), got \(bytesDownloaded)")
+                    throw HuggingFaceError.downloadFailed(file.name, "Size mismatch: expected \(file.size), got \(bytesDownloaded)")
+                }
+                print("✅ [DEBUG] Downloaded \(file.name): \(bytesDownloaded) bytes (exact size match)")
             }
             
             // Move partial file to final location
@@ -737,27 +746,42 @@ public actor HuggingFaceClient {
         
         // Parse siblings (files) array from the API response if available
         if let siblings = json["siblings"] as? [[String: Any]] {
+            print("🔍 [DEBUG] Found \(siblings.count) siblings in API response")
             for sibling in siblings {
-                guard let filename = sibling["rfilename"] as? String,
-                      let size = sibling["size"] as? Int64 else {
+                guard let filename = sibling["rfilename"] as? String else {
+                    print("⚠️ [DEBUG] Skipping sibling missing filename: \(sibling)")
                     continue
                 }
                 
+                // Size may not be available in API response, use reasonable defaults
+                let size = sibling["size"] as? Int64 ?? getDefaultFileSize(filename)
+                
+                print("📂 [DEBUG] Found file: \(filename) (\(size) bytes)")
+                
                 // Only include files that MLX models typically need
                 if isMLXModelFile(filename) {
+                    let isReq = isRequiredMLXFile(filename)
+                    print("✅ [DEBUG] Including \(filename) (required: \(isReq))")
                     files.append(ModelFile(
                         name: filename,
                         size: size,
                         url: "\(Self.hubBaseURL)/\(repoId)/resolve/main/\(filename)",
-                        isRequired: isRequiredMLXFile(filename)
+                        isRequired: isReq
                     ))
+                } else {
+                    print("⏭️ [DEBUG] Skipping non-MLX file: \(filename)")
                 }
             }
+        } else {
+            print("❌ [DEBUG] No siblings array found in API response")
         }
         
         // If no files found in siblings, fall back to standard MLX files
         if files.isEmpty {
+            print("⚠️ [DEBUG] No MLX files found in siblings, falling back to hardcoded file list")
             files = createStandardMLXFiles(repoId: repoId)
+        } else {
+            print("✅ [DEBUG] Using \(files.count) files from API response")
         }
         
         // Ensure we have at least some required files
@@ -791,27 +815,49 @@ public actor HuggingFaceClient {
         let lowercased = filename.lowercased()
         
         // Core files that MLX models need to function
+        // Note: tokenizer.json is not required for all MLX models
         return lowercased == "config.json" ||
-               lowercased.hasSuffix(".safetensors") ||
-               lowercased == "tokenizer.json"
+               lowercased.hasSuffix(".safetensors")
+    }
+    
+    /// Provides reasonable default file sizes when not available from API
+    private func getDefaultFileSize(_ filename: String) -> Int64 {
+        let lowercased = filename.lowercased()
+        
+        // Use reasonable size estimates based on typical file types
+        if lowercased == "config.json" {
+            return 500  // Config files are typically small
+        } else if lowercased.hasSuffix(".safetensors") {
+            return 3_000_000_000  // Model weights are typically ~3GB for large models
+        } else if lowercased == "tokenizer.json" {
+            return 2_000_000  // Tokenizer files are typically ~2MB
+        } else if lowercased.hasSuffix(".json") {
+            return 10_000  // Other JSON files are typically small
+        } else {
+            return 1_000_000  // Default 1MB for unknown files
+        }
     }
     
     /// Creates standard MLX files when API doesn't provide file listing
     private func createStandardMLXFiles(repoId: String) -> [ModelFile] {
+        print("🛠️ [DEBUG] Creating hardcoded file list for MLX model (API parsing failed)")
         var files: [ModelFile] = []
         
         // Essential files for MLX Whisper models
+        // Note: config.json is typically 400-600 bytes, using conservative estimate
         files.append(ModelFile(
             name: "config.json",
-            size: 2048,
+            size: 1000,
             url: "\(Self.hubBaseURL)/\(repoId)/resolve/main/config.json"
         ))
+        print("📝 [DEBUG] Added hardcoded file: config.json")
         
         files.append(ModelFile(
             name: "tokenizer.json", 
             size: 2_000_000, // ~2MB typical tokenizer size
             url: "\(Self.hubBaseURL)/\(repoId)/resolve/main/tokenizer.json"
         ))
+        print("📝 [DEBUG] Added hardcoded file: tokenizer.json")
         
         // MLX models often have weights in safetensors format
         let modelSize = estimateModelFileSize(repoId: repoId)
@@ -820,7 +866,9 @@ public actor HuggingFaceClient {
             size: modelSize,
             url: "\(Self.hubBaseURL)/\(repoId)/resolve/main/weights.safetensors"
         ))
+        print("📝 [DEBUG] Added hardcoded file: weights.safetensors (\(modelSize) bytes)")
         
+        print("📋 [DEBUG] Hardcoded file list complete: \(files.count) files")
         return files
     }
     
