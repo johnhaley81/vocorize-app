@@ -555,6 +555,7 @@ struct WhisperKitIntegrationTests {
                 print("ℹ️ MLX framework not available or not integrated")
             }
         }
+        }
     }
     
     // MARK: - Cleanup and Utility Methods

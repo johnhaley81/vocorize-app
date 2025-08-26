@@ -86,7 +86,7 @@ public actor TestProviderFactory {
         let availability = MLXAvailability()
         let healthCheck = await availability.performMLXHealthCheck()
         
-        if healthCheck.isFullyFunctional {
+        if healthCheck.isHealthy {
             // TODO: Register real MLX provider when implemented
             print("✅ MLX framework fully functional - would register real MLX provider")
             let mockMLXProvider = MockMLXProvider()
@@ -273,7 +273,7 @@ extension TestProviderFactory {
         let availability = MLXAvailability()
         let healthCheck = await availability.performMLXHealthCheck()
         
-        if healthCheck.isFullyFunctional {
+        if healthCheck.isHealthy {
             // TODO: Return real MLX provider when implemented
             print("📝 MLX available but real provider not implemented, using mock")
             return MockMLXProvider()
@@ -350,7 +350,7 @@ actor CachedWhisperKitProvider: TranscriptionProvider {
     
     func loadModelIntoMemory(_ modelName: String) async throws -> Bool {
         // For testing, download model if not available, then assume it can be loaded
-        if !await isModelDownloaded(modelName) {
+        if !(await isModelDownloaded(modelName)) {
             try await downloadModel(modelName, progressCallback: { _ in })
         }
         return await isModelDownloaded(modelName)
