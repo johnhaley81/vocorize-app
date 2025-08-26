@@ -134,7 +134,20 @@ class KeyEventMonitorClientLive {
       )
     else {
       isMonitoring = false
-      logger.error("Failed to create event tap.")
+      logger.error("Failed to create event tap. This usually means Accessibility permissions are not granted.")
+      
+      // Check if accessibility is enabled
+      let accessibilityEnabled = AXIsProcessTrusted()
+      if !accessibilityEnabled {
+        logger.error("Accessibility access is not enabled for Vocorize. Please grant Accessibility permissions in System Preferences > Security & Privacy > Privacy > Accessibility")
+        
+        // Optionally prompt user to enable accessibility
+        DispatchQueue.main.async {
+          self.promptForAccessibilityPermission()
+        }
+      } else {
+        logger.error("Event tap creation failed despite Accessibility being enabled. This may be a system-level restriction.")
+      }
       return
     }
 
@@ -187,5 +200,22 @@ class KeyEventMonitorClientLive {
     }
 
     return handled
+  }
+  
+  private func promptForAccessibilityPermission() {
+    let alert = NSAlert()
+    alert.messageText = "Accessibility Permission Required"
+    alert.informativeText = "Vocorize needs Accessibility permission to monitor keyboard shortcuts. Please enable it in System Preferences > Security & Privacy > Privacy > Accessibility and add Vocorize to the list."
+    alert.addButton(withTitle: "Open System Preferences")
+    alert.addButton(withTitle: "Later")
+    alert.alertStyle = .warning
+    
+    let response = alert.runModal()
+    if response == .alertFirstButtonReturn {
+      // Open System Preferences to Accessibility settings
+      if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+        NSWorkspace.shared.open(url)
+      }
+    }
   }
 }
