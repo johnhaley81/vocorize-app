@@ -145,7 +145,7 @@ public class MLXPerformanceProfiler {
     
     /// Profile MLX framework loading performance with comprehensive analysis
     public func profileMLXInitialization(config: ProfilingConfig = .standard) async -> MLXPerformanceMetrics {
-        logger.info("Starting MLX performance profiling with config: \(config)")
+        logger.info("Starting MLX performance profiling with \(config.iterations) iterations, warmup: \(config.warmupIterations)")
         
         var allResults: [SingleRunMetrics] = []
         

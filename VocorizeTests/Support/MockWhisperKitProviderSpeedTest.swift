@@ -13,9 +13,9 @@ import Testing
 
 struct MockWhisperKitProviderSpeedTest {
     
-    @Test("MockWhisperKitProvider provides instant responses")
+    @Test("SimpleWhisperKitProvider provides instant responses")
     func testInstantSpeed() async throws {
-        let mock = try MockWhisperKitProvider()
+        let mock = SimpleWhisperKitProvider()
         
         let startTime = Date()
         
@@ -53,11 +53,11 @@ struct MockWhisperKitProviderSpeedTest {
         print("🚀 Speed improvement: ~540x faster")
     }
     
-    @Test("MockWhisperKitProvider can simulate errors instantly")
+    @Test("SimpleWhisperKitProvider can simulate errors instantly")
     func testInstantErrorSimulation() async throws {
-        let mock = MockWhisperKitProvider.failingTranscription()
+        let mock = SimpleWhisperKitProvider.failingTranscription()
         
-        let startTime = ContinuousTimer.now
+        let startTime = Date()
         
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("test-audio.wav")
@@ -78,16 +78,16 @@ struct MockWhisperKitProviderSpeedTest {
             #expect(error is TranscriptionProviderError)
             
             // Verify error simulation is also instant
-            #expect(duration < Duration.milliseconds(10))
+            #expect(duration < 0.01)
             
             print("✅ Mock error simulation completed in: \(duration)")
         }
     }
     
-    @Test("MockWhisperKitProvider factory methods work correctly")
+    @Test("SimpleWhisperKitProvider factory methods work correctly")
     func testFactoryMethods() async throws {
         // Test successful factory
-        let successMock = MockWhisperKitProvider.successful()
+        let successMock = SimpleWhisperKitProvider.successful()
         let result = try await successMock.transcribe(
             audioURL: FileManager.default.temporaryDirectory.appendingPathComponent("test.wav"),
             modelName: "test-model",
@@ -97,7 +97,7 @@ struct MockWhisperKitProviderSpeedTest {
         #expect(result == "Mock transcription result")
         
         // Test with custom result factory
-        let customMock = MockWhisperKitProvider.withResult("Custom result")
+        let customMock = SimpleWhisperKitProvider.withResult("Custom result")
         // Note: Factory methods use Task{}, so we need a small delay for async setup
         try await Task.sleep(nanoseconds: 1_000_000) // 1ms
         
@@ -110,9 +110,9 @@ struct MockWhisperKitProviderSpeedTest {
         #expect(customResult == "Custom result")
     }
     
-    @Test("MockWhisperKitProvider supports test configuration")
+    @Test("SimpleWhisperKitProvider supports test configuration")
     func testConfiguration() async throws {
-        let mock = MockWhisperKitProvider()
+        let mock = SimpleWhisperKitProvider()
         
         // Test configuration methods
         await mock.setTranscriptionResult("Configured result")
