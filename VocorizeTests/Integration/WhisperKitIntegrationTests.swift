@@ -433,9 +433,10 @@ struct WhisperKitIntegrationTests {
         #expect(modelNames.contains(recommendedModel))
         
         // Verify recommendation considers device capabilities (mock provider only)
+        var isCompatible = true // Default for non-mock providers
         if let mockProvider = provider as? MockWhisperKitProvider {
             let capabilities = await mockProvider.getCurrentDeviceCapabilities()
-            let isCompatible = await mockProvider.isModelCompatibleWithDevice(
+            isCompatible = await mockProvider.isModelCompatibleWithDevice(
                 recommendedModel,
                 device: capabilities
             )
@@ -449,22 +450,23 @@ struct WhisperKitIntegrationTests {
         let provider = TestProviderFactory.createProvider(for: .whisperKit)
         
         // Get real device capabilities (mock provider only)
+        var capabilities: MockDeviceCapabilities? = nil
         if let mockProvider = provider as? MockWhisperKitProvider {
-            let capabilities = await mockProvider.getCurrentDeviceCapabilities()
+            capabilities = await mockProvider.getCurrentDeviceCapabilities()
             
             // Verify we get meaningful hardware information
-            #expect(capabilities.availableMemory > 0)
+            #expect(capabilities!.availableMemory > 0)
+            #expect(!capabilities!.supportedModelSizes.isEmpty)
+            
+            // Neural Engine detection should work on Apple Silicon
+            if ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 11 {
+                // On macOS 11+, Neural Engine should be detectable
+                #expect(capabilities!.hasNeuralEngine != nil)
+            }
+            
+            // Core ML compute units should be detected
+            #expect(capabilities!.coreMLComputeUnits != nil)
         }
-        #expect(!capabilities.supportedModelSizes.isEmpty)
-        
-        // Neural Engine detection should work on Apple Silicon
-        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 11 {
-            // On macOS 11+, Neural Engine should be detectable
-            #expect(capabilities.hasNeuralEngine != nil)
-        }
-        
-        // Core ML compute units should be detected
-        #expect(capabilities.coreMLComputeUnits != nil)
     }
     
     // MARK: - Real Network Error Handling Integration Tests
@@ -540,21 +542,21 @@ struct WhisperKitIntegrationTests {
             let capabilities = await mockProvider.getCurrentDeviceCapabilities()
             
             // On Apple Silicon Macs, MLX should be available (in mock)
-        let isAppleSilicon = ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 11
-        
-        if isAppleSilicon {
-            // MLX models should be in supported sizes if framework is available
-            let hasMLXModels = capabilities.supportedModelSizes.contains { size in
-                size.lowercased().contains("mlx")
-            }
+            let isAppleSilicon = ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 11
             
-            // This test verifies MLX integration works when framework is present
-            if hasMLXModels {
-                print("✅ MLX framework detected and integrated")
-            } else {
-                print("ℹ️ MLX framework not available or not integrated")
+            if isAppleSilicon {
+                // MLX models should be in supported sizes if framework is available
+                let hasMLXModels = capabilities.supportedModelSizes.contains { size in
+                    size.lowercased().contains("mlx")
+                }
+                
+                // This test verifies MLX integration works when framework is present
+                if hasMLXModels {
+                    print("✅ MLX framework detected and integrated")
+                } else {
+                    print("ℹ️ MLX framework not available or not integrated")
+                }
             }
-        }
         }
     }
     
@@ -715,11 +717,11 @@ extension TranscriptionProviderError: @retroactive Equatable {
         switch (lhs, rhs) {
         case (.modelNotFound(let lModel), .modelNotFound(let rModel)):
             return lModel == rModel
-        case (.modelLoadFailed, .modelLoadFailed):
-            return true
+        case (.modelLoadFailed(let lModel, _), .modelLoadFailed(let rModel, _)):
+            return lModel == rModel
         case (.transcriptionFailed(let lModel, _), .transcriptionFailed(let rModel, _)):
             return lModel == rModel
-        case (.downloadFailed(let lModel, _), .downloadFailed(let rModel, _)):
+        case (.modelDownloadFailed(let lModel, _), .modelDownloadFailed(let rModel, _)):
             return lModel == rModel
         default:
             return false

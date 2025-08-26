@@ -201,6 +201,16 @@ actor MockMLXProvider: TranscriptionProvider {
     func getRecommendedModel() async throws -> String {
         return "mlx-tiny"
     }
+    
+    func loadModelIntoMemory(_ modelName: String) async throws -> Bool {
+        // Mock MLX models are always "loadable"
+        return true
+    }
+    
+    func isModelLoadedInMemory(_ modelName: String) async -> Bool {
+        // Mock MLX models are always "loaded"
+        return true
+    }
 }
 
 // MARK: - Test Utilities

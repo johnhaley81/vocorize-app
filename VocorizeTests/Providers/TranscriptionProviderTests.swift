@@ -498,6 +498,16 @@ actor MockTranscriptionProvider: TranscriptionProvider {
     func getRecommendedModel() async throws -> String {
         return "tiny"
     }
+    
+    func loadModelIntoMemory(_ modelName: String) async throws -> Bool {
+        // Mock always succeeds
+        return true
+    }
+    
+    func isModelLoadedInMemory(_ modelName: String) async -> Bool {
+        // Mock always loaded
+        return true
+    }
 }
 
 /// MockMLXProvider declaration removed to avoid duplicate declarations.

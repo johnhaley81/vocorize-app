@@ -667,4 +667,12 @@ actor FaultyMockProvider: TranscriptionProvider {
     func getRecommendedModel() async throws -> String {
         throw TranscriptionProviderError.providerNotAvailable(.whisperKit)
     }
+    
+    func loadModelIntoMemory(_ modelName: String) async throws -> Bool {
+        throw TranscriptionProviderError.modelNotFound(modelName)
+    }
+    
+    func isModelLoadedInMemory(_ modelName: String) async -> Bool {
+        false
+    }
 }

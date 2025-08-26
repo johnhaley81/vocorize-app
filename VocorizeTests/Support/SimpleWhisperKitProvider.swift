@@ -126,6 +126,19 @@ actor SimpleWhisperKitProvider: TranscriptionProvider {
         return "openai/whisper-tiny"
     }
     
+    func loadModelIntoMemory(_ modelName: String) async throws -> Bool {
+        // For testing, assume model can be loaded if downloaded
+        if !(await isModelDownloaded(modelName)) {
+            try await downloadModel(modelName, progressCallback: { _ in })
+        }
+        return true
+    }
+    
+    func isModelLoadedInMemory(_ modelName: String) async -> Bool {
+        // For testing, assume loaded if downloaded
+        return await isModelDownloaded(modelName)
+    }
+    
     // MARK: - Test Configuration Methods
     
     /// Configure the mock to return specific transcription text

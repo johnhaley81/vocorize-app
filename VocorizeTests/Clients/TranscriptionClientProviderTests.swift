@@ -95,6 +95,14 @@ struct TranscriptionClientProviderTests {
         func getRecommendedModel() async throws -> String {
             return "tiny"
         }
+        
+        func loadModelIntoMemory(_ modelName: String) async throws -> Bool {
+            return true
+        }
+        
+        func isModelLoadedInMemory(_ modelName: String) async -> Bool {
+            return true
+        }
     }
     
     /// Mock provider for testing - MLX type
@@ -154,6 +162,14 @@ struct TranscriptionClientProviderTests {
         
         func getRecommendedModel() async throws -> String {
             return "small"
+        }
+        
+        func loadModelIntoMemory(_ modelName: String) async throws -> Bool {
+            return true
+        }
+        
+        func isModelLoadedInMemory(_ modelName: String) async -> Bool {
+            return true
         }
     }
     
