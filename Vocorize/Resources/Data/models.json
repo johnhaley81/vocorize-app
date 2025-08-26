@@ -38,6 +38,54 @@
             "description": "Highest accuracy WhisperKit model for complex audio"
         },
         {
+            "displayName": "Tiny (MLX)",
+            "internalName": "mlx-community/whisper-tiny-mlx",
+            "provider": "mlx",
+            "size": "Tiny",
+            "accuracyStars": 2,
+            "speedStars": 5,
+            "storageSize": "40MB",
+            "isRecommended": false,
+            "minimumRAM": "4GB",
+            "description": "Fastest MLX model with basic accuracy, ideal for real-time transcription"
+        },
+        {
+            "displayName": "Base (MLX)",
+            "internalName": "mlx-community/whisper-base-mlx",
+            "provider": "mlx",
+            "size": "Base",
+            "accuracyStars": 3,
+            "speedStars": 4,
+            "storageSize": "150MB",
+            "isRecommended": true,
+            "minimumRAM": "4GB",
+            "description": "Recommended MLX model with excellent speed-accuracy balance for Apple Silicon"
+        },
+        {
+            "displayName": "Small (MLX)",
+            "internalName": "mlx-community/whisper-small-mlx",
+            "provider": "mlx",
+            "size": "Small",
+            "accuracyStars": 4,
+            "speedStars": 4,
+            "storageSize": "250MB",
+            "isRecommended": false,
+            "minimumRAM": "6GB",
+            "description": "High-accuracy MLX model optimized for Apple Silicon with superior performance"
+        },
+        {
+            "displayName": "Medium (MLX)",
+            "internalName": "mlx-community/whisper-medium-mlx",
+            "provider": "mlx",
+            "size": "Medium",
+            "accuracyStars": 4,
+            "speedStars": 3,
+            "storageSize": "800MB",
+            "isRecommended": false,
+            "minimumRAM": "8GB",
+            "description": "High-accuracy MLX model for complex audio with Apple Silicon optimization"
+        },
+        {
             "displayName": "Large V3 Turbo (MLX)",
             "internalName": "mlx-community/whisper-large-v3-turbo",
             "provider": "mlx",
@@ -47,7 +95,7 @@
             "storageSize": "1.2GB",
             "isRecommended": false,
             "minimumRAM": "8GB",
-            "description": "High-performance MLX model optimized for Apple Silicon"
+            "description": "Highest-accuracy MLX model with excellent performance on Apple Silicon"
         }
     ]
 }

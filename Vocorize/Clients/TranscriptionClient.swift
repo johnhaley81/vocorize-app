@@ -11,6 +11,11 @@ import DependenciesMacros
 import Foundation
 import WhisperKit
 
+#if canImport(MLX) && canImport(MLXNN)
+import MLX
+import MLXNN
+#endif
+
 /// A client that downloads and loads WhisperKit models, then transcribes audio files using the loaded model.
 /// Exposes progress callbacks to report overall download-and-load percentage and transcription progress.
 @DependencyClient
@@ -123,9 +128,21 @@ actor TranscriptionClientLive {
     
     // Register MLX provider conditionally based on availability
     if MLXAvailability.isAvailable {
-      // MLX provider will be implemented in next issue
-      // For now, log that MLX is available for future registration
-      print("✅ MLX framework is available for future provider registration")
+      if #available(macOS 13.0, *) {
+#if canImport(MLX) && canImport(MLXNN)
+        do {
+          let mlxProvider = MLXProvider()
+          await factory.registerProvider(mlxProvider, for: .mlx)
+          print("✅ MLX provider registered successfully")
+        } catch {
+          print("⚠️ MLX provider registration failed: \(error.localizedDescription)")
+        }
+#else
+        print("⚠️ MLX frameworks not available at compile time")
+#endif
+      } else {
+        print("⚠️ MLX requires macOS 13.0 or later")
+      }
     } else {
       let compatInfo = MLXAvailability.compatibilityInfo
       let statusMessage = generateMLXStatusMessage(from: compatInfo)
