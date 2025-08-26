@@ -57,4 +57,14 @@ public protocol TranscriptionProvider: Actor {
     /// Returns recommended model for current hardware
     /// - Returns: Model name that's recommended for this device
     func getRecommendedModel() async throws -> String
+    
+    /// Loads a model into memory for immediate use
+    /// - Parameter modelName: Internal model name to load into memory
+    /// - Returns: true if successfully loaded, false otherwise
+    func loadModelIntoMemory(_ modelName: String) async throws -> Bool
+    
+    /// Checks if a model is currently loaded in memory
+    /// - Parameter modelName: Internal model name to check
+    /// - Returns: true if model is loaded in memory, false otherwise
+    func isModelLoadedInMemory(_ modelName: String) async -> Bool
 }

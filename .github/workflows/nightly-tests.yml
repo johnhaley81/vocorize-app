@@ -1,0 +1,409 @@
+name: Nightly Full Integration Test Suite
+
+on:
+  schedule:
+    # Run at 2 AM UTC daily
+    - cron: '0 2 * * *'
+    
+  # Allow manual triggering with options
+  workflow_dispatch:
+    inputs:
+      test_scope:
+        description: 'Test scope to run'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+          - 'full'
+          - 'integration-only'
+          - 'performance-only'
+          - 'whisperkit-only'
+          - 'mlx-only'
+      model_cleanup:
+        description: 'Clean up downloaded models after tests'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+  # Full integration test mode
+  VOCORIZE_TEST_MODE: integration
+  # Allow all model downloads
+  VOCORIZE_ALLOW_MODEL_DOWNLOADS: true
+  # Enable comprehensive logging
+  VOCORIZE_VERBOSE_LOGGING: true
+
+jobs:
+  test-matrix-setup:
+    name: Setup Test Matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    
+    outputs:
+      matrix: ${{ steps.setup-matrix.outputs.matrix }}
+      
+    steps:
+    - name: Setup Test Matrix
+      id: setup-matrix
+      run: |
+        case "${{ github.event.inputs.test_scope || 'full' }}" in
+          "full")
+            MATRIX='[
+              {"suite": "unit", "timeout": 10, "models": "none"},
+              {"suite": "whisperkit-integration", "timeout": 30, "models": "tiny,base"},
+              {"suite": "mlx-integration", "timeout": 20, "models": "mlx-tiny"},
+              {"suite": "provider-integration", "timeout": 25, "models": "recommended"},
+              {"suite": "system-integration", "timeout": 45, "models": "all-critical"},
+              {"suite": "performance-benchmarks", "timeout": 40, "models": "benchmark-set"}
+            ]'
+            ;;
+          "integration-only")
+            MATRIX='[
+              {"suite": "whisperkit-integration", "timeout": 30, "models": "tiny,base"},
+              {"suite": "mlx-integration", "timeout": 20, "models": "mlx-tiny"},
+              {"suite": "provider-integration", "timeout": 25, "models": "recommended"}
+            ]'
+            ;;
+          "performance-only")
+            MATRIX='[
+              {"suite": "performance-benchmarks", "timeout": 40, "models": "benchmark-set"}
+            ]'
+            ;;
+          "whisperkit-only")
+            MATRIX='[
+              {"suite": "whisperkit-integration", "timeout": 30, "models": "tiny,base,small"}
+            ]'
+            ;;
+          "mlx-only")
+            MATRIX='[
+              {"suite": "mlx-integration", "timeout": 20, "models": "mlx-tiny,mlx-base"}
+            ]'
+            ;;
+        esac
+        
+        echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+  comprehensive-tests:
+    name: ${{ matrix.suite }} (Models: ${{ matrix.models }})
+    runs-on: macos-15
+    needs: test-matrix-setup
+    timeout-minutes: ${{ matrix.timeout }}
+    
+    strategy:
+      fail-fast: false
+      matrix: 
+        include: ${{ fromJson(needs.test-matrix-setup.outputs.matrix) }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Select Xcode version
+      run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+      
+    - name: Cache Swift Package Manager
+      uses: actions/cache@v4
+      with:
+        path: |
+          .build
+          ~/Library/Developer/Xcode/DerivedData
+        key: ${{ runner.os }}-xcode162-spm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-xcode162-spm-
+          ${{ runner.os }}-nightly-spm-
+          ${{ runner.os }}-main-spm-
+          ${{ runner.os }}-spm-
+          
+    - name: Cache ML Models
+      uses: actions/cache@v4
+      if: matrix.models != 'none'
+      with:
+        path: |
+          ~/Library/Caches/whisperkit
+          ~/.cache/huggingface
+          ~/Library/Caches/mlx-community
+        key: ${{ runner.os }}-models-${{ matrix.models || 'none' }}-v3
+        restore-keys: |
+          ${{ runner.os }}-models-
+          
+    - name: Setup Test Environment
+      run: |
+        # Create test directories
+        mkdir -p ~/Library/Caches/whisperkit
+        mkdir -p ~/.cache/huggingface
+        mkdir -p ~/Library/Caches/mlx-community
+        
+        # Setup test environment variables
+        echo "VOCORIZE_TEST_SUITE=${{ matrix.suite }}" >> $GITHUB_ENV
+        echo "VOCORIZE_TEST_MODELS=${{ matrix.models }}" >> $GITHUB_ENV
+        
+        # Free up disk space for model downloads
+        df -h
+        
+    - name: Pre-test System Check
+      run: |
+        # System resource check
+        echo "=== System Information ==="
+        system_profiler SPHardwareDataType
+        echo ""
+        echo "=== Memory Usage ==="
+        vm_stat
+        echo ""
+        echo "=== Disk Space ==="
+        df -h
+        echo ""
+        echo "=== Network Connectivity ==="
+        ping -c 3 huggingface.co || echo "HuggingFace connectivity issue"
+        
+    - name: Run Test Suite
+      run: |
+        set -o pipefail
+        
+        START_TIME=$(date +%s)
+        
+        case "${{ matrix.suite }}" in
+          "unit")
+            echo "🧪 Running comprehensive unit test suite..."
+            xcodebuild test \
+              -project Vocorize.xcodeproj \
+              -scheme Vocorize \
+              -destination 'platform=macOS,arch=arm64' \
+              -only-testing:VocorizeTests/VocorizeTests \
+              -only-testing:VocorizeTests/WhisperKitProviderTests \
+              -only-testing:VocorizeTests/TranscriptionProviderTests \
+              -only-testing:VocorizeTests/TranscriptionClientProviderTests \
+              -only-testing:VocorizeTests/ModelConfigurationTests \
+              -only-testing:VocorizeTests/MLXProviderRegistrationTests \
+              -only-testing:VocorizeTests/MLXAvailabilityTests \
+              -only-testing:VocorizeTests/TranscriptionProviderFactoryTests \
+              -test-timeouts-enabled NO \
+              CODE_SIGNING_ALLOWED=NO
+            ;;
+            
+          "whisperkit-integration")
+            echo "🎯 Running WhisperKit integration tests..."
+            xcodebuild test \
+              -project Vocorize.xcodeproj \
+              -scheme Vocorize \
+              -destination 'platform=macOS,arch=arm64' \
+              -only-testing:VocorizeTests/WhisperKitIntegrationTests \
+              -test-timeouts-enabled NO \
+              CODE_SIGNING_ALLOWED=NO
+            ;;
+            
+          "mlx-integration")
+            echo "⚡ Running MLX integration tests..."
+            xcodebuild test \
+              -project Vocorize.xcodeproj \
+              -scheme Vocorize \
+              -destination 'platform=macOS,arch=arm64' \
+              -only-testing:VocorizeTests/MLXIntegrationTests \
+              -only-testing:VocorizeTests/MLXSystemCompatibilityTests \
+              -test-timeouts-enabled NO \
+              CODE_SIGNING_ALLOWED=NO
+            ;;
+            
+          "provider-integration")
+            echo "🔌 Running provider integration tests..."
+            xcodebuild test \
+              -project Vocorize.xcodeproj \
+              -scheme Vocorize \
+              -destination 'platform=macOS,arch=arm64' \
+              -only-testing:VocorizeTests/ProviderSystemIntegrationTests \
+              -only-testing:VocorizeTests/TranscriptionProviderFactoryTests \
+              -test-timeouts-enabled NO \
+              CODE_SIGNING_ALLOWED=NO
+            ;;
+            
+          "system-integration")
+            echo "🏗️ Running full system integration tests..."
+            ./test.sh
+            ;;
+            
+          "performance-benchmarks")
+            echo "⚡ Running performance benchmarks..."
+            # Custom performance test runner
+            xcodebuild test \
+              -project Vocorize.xcodeproj \
+              -scheme Vocorize \
+              -destination 'platform=macOS,arch=arm64' \
+              -only-testing:VocorizeTests/WhisperKitProviderTests/testSuite_completesWithinPerformanceTarget \
+              -test-timeouts-enabled NO \
+              CODE_SIGNING_ALLOWED=NO
+            ;;
+        esac | tee "test-output-${{ matrix.suite }}.log"
+        
+        END_TIME=$(date +%s)
+        DURATION=$((END_TIME - START_TIME))
+        echo "test_duration=$DURATION" >> $GITHUB_OUTPUT
+        
+    - name: Collect Test Metrics
+      if: always()
+      run: |
+        # Extract performance metrics from test output
+        TEST_FILE="test-output-${{ matrix.suite }}.log"
+        
+        if [ -f "$TEST_FILE" ]; then
+          echo "## Test Metrics for ${{ matrix.suite }}" >> $GITHUB_STEP_SUMMARY
+          
+          # Test count metrics
+          PASSED_TESTS=$(grep -c "Test Case.*passed" "$TEST_FILE" || echo "0")
+          FAILED_TESTS=$(grep -c "Test Case.*failed" "$TEST_FILE" || echo "0")
+          
+          echo "- ✅ Tests Passed: $PASSED_TESTS" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ Tests Failed: $FAILED_TESTS" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏱️ Duration: ${{ steps.run-test-suite.outputs.test_duration || 'Unknown' }}s" >> $GITHUB_STEP_SUMMARY
+          
+          # Performance metrics (if available)
+          if grep -q "Unit test performance" "$TEST_FILE"; then
+            PERF_TIME=$(grep "Unit test performance" "$TEST_FILE" | grep -o '[0-9]*\.[0-9]*s')
+            echo "- 🚀 Performance: $PERF_TIME" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Model download metrics (if available)
+          if grep -q "Model download" "$TEST_FILE"; then
+            MODEL_COUNT=$(grep -c "Model download" "$TEST_FILE")
+            echo "- 📦 Models Downloaded: $MODEL_COUNT" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Memory usage (if available)
+          if grep -q "Memory usage" "$TEST_FILE"; then
+            MEMORY_PEAK=$(grep "Memory usage" "$TEST_FILE" | tail -1 | grep -o '[0-9]*MB')
+            echo "- 💾 Peak Memory: $MEMORY_PEAK" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: nightly-test-results-${{ matrix.suite }}
+        path: |
+          test-output-*.log
+          test_output.log
+        retention-days: 7
+        
+    - name: Cleanup Models (if requested)
+      if: always() && github.event.inputs.model_cleanup == 'true'
+      run: |
+        echo "🧹 Cleaning up downloaded models..."
+        rm -rf ~/Library/Caches/whisperkit/* || true
+        rm -rf ~/.cache/huggingface/* || true
+        rm -rf ~/Library/Caches/mlx-community/* || true
+        echo "✅ Model cleanup completed"
+
+  test-report:
+    name: Generate Test Report
+    runs-on: ubuntu-latest
+    needs: comprehensive-tests
+    if: always()
+    timeout-minutes: 5
+    
+    steps:
+    - name: Download All Test Results
+      uses: actions/download-artifact@v4
+      with:
+        path: ./test-results/
+        
+    - name: Generate Comprehensive Report
+      run: |
+        echo "# 🌙 Nightly Test Report - $(date +'%Y-%m-%d')" > nightly-report.md
+        echo "" >> nightly-report.md
+        
+        echo "## Test Suite Results" >> nightly-report.md
+        echo "" >> nightly-report.md
+        
+        # Process each test suite result
+        for suite_dir in ./test-results/nightly-test-results-*/; do
+          if [ -d "$suite_dir" ]; then
+            suite_name=$(basename "$suite_dir" | sed 's/nightly-test-results-//')
+            echo "### $suite_name" >> nightly-report.md
+            
+            # Look for test output files
+            if find "$suite_dir" -name "*.log" | head -1 | xargs grep -l "Test Suite.*passed\|Test Suite.*failed" 2>/dev/null; then
+              LOG_FILE=$(find "$suite_dir" -name "*.log" | head -1)
+              
+              if grep -q "Test Suite.*passed" "$LOG_FILE"; then
+                echo "✅ **PASSED**" >> nightly-report.md
+              else
+                echo "❌ **FAILED**" >> nightly-report.md
+              fi
+              
+              # Extract test counts
+              PASSED=$(grep -c "Test Case.*passed" "$LOG_FILE" 2>/dev/null || echo "0")
+              FAILED=$(grep -c "Test Case.*failed" "$LOG_FILE" 2>/dev/null || echo "0")
+              
+              echo "- Tests Passed: $PASSED" >> nightly-report.md
+              echo "- Tests Failed: $FAILED" >> nightly-report.md
+            else
+              echo "⚠️ **NO RESULTS**" >> nightly-report.md
+            fi
+            
+            echo "" >> nightly-report.md
+          fi
+        done
+        
+        echo "## Summary" >> nightly-report.md
+        echo "" >> nightly-report.md
+        echo "- Test run completed: $(date)" >> nightly-report.md
+        echo "- Trigger: ${{ github.event_name }}" >> nightly-report.md
+        if [ "${{ github.event.inputs.test_scope }}" ]; then
+          echo "- Scope: ${{ github.event.inputs.test_scope }}" >> nightly-report.md
+        fi
+        
+        cat nightly-report.md
+        
+    - name: Upload Comprehensive Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly-test-report
+        path: nightly-report.md
+        retention-days: 30
+        
+  notify-on-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: comprehensive-tests
+    if: failure()
+    
+    steps:
+    - name: Create Failure Issue
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = '🚨 Nightly Test Failure - ' + new Date().toISOString().split('T')[0];
+          const body = `
+          ## Nightly Test Suite Failed
+          
+          **Date**: ${new Date().toISOString()}
+          **Workflow**: ${context.workflow}
+          **Run ID**: ${context.runId}
+          **Trigger**: ${context.eventName}
+          
+          ## Failed Jobs
+          The following test suites failed during the nightly run:
+          
+          ${{ needs.comprehensive-tests.result }}
+          
+          ## Investigation Steps
+          1. Check the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}) for detailed logs
+          2. Review test artifacts for specific failure details
+          3. Check for model download issues or network connectivity problems
+          4. Verify system resource availability during test execution
+          
+          ## Auto-Recovery
+          - [ ] Retry the failed test suite
+          - [ ] Check for transient infrastructure issues
+          - [ ] Verify model availability and accessibility
+          
+          **Labels**: bug, testing, nightly-failure, needs-investigation
+          `;
+          
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: ['bug', 'testing', 'nightly-failure', 'needs-investigation']
+          });

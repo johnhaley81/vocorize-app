@@ -1,0 +1,190 @@
+{
+    "version": "1.0",
+    "description": "Expected transcription outputs for test audio files",
+    "transcriptions": {
+        "silence.wav": {
+            "text": "",
+            "confidence": 1.0,
+            "language": "en",
+            "duration": 1.0,
+            "segments": []
+        },
+        "hello_world.wav": {
+            "text": "Hello world, this is a test.",
+            "confidence": 0.95,
+            "language": "en",
+            "duration": 2.5,
+            "segments": [
+                {
+                    "start": 0.0,
+                    "end": 1.2,
+                    "text": "Hello world,",
+                    "confidence": 0.96
+                },
+                {
+                    "start": 1.2,
+                    "end": 2.5,
+                    "text": " this is a test.",
+                    "confidence": 0.94
+                }
+            ]
+        },
+        "quick_brown_fox.wav": {
+            "text": "The quick brown fox jumps over the lazy dog.",
+            "confidence": 0.92,
+            "language": "en",
+            "duration": 3.2,
+            "segments": [
+                {
+                    "start": 0.0,
+                    "end": 1.8,
+                    "text": "The quick brown fox jumps",
+                    "confidence": 0.93
+                },
+                {
+                    "start": 1.8,
+                    "end": 3.2,
+                    "text": " over the lazy dog.",
+                    "confidence": 0.91
+                }
+            ]
+        },
+        "numbers_123.wav": {
+            "text": "One, two, three, four, five.",
+            "confidence": 0.98,
+            "language": "en",
+            "duration": 2.8,
+            "segments": [
+                {
+                    "start": 0.0,
+                    "end": 1.4,
+                    "text": "One, two, three,",
+                    "confidence": 0.99
+                },
+                {
+                    "start": 1.4,
+                    "end": 2.8,
+                    "text": " four, five.",
+                    "confidence": 0.97
+                }
+            ]
+        },
+        "multilingual_sample.wav": {
+            "text": "Hello, bonjour, hola.",
+            "confidence": 0.88,
+            "language": "en",
+            "duration": 2.0,
+            "segments": [
+                {
+                    "start": 0.0,
+                    "end": 0.7,
+                    "text": "Hello,",
+                    "confidence": 0.95
+                },
+                {
+                    "start": 0.7,
+                    "end": 1.3,
+                    "text": " bonjour,",
+                    "confidence": 0.85
+                },
+                {
+                    "start": 1.3,
+                    "end": 2.0,
+                    "text": " hola.",
+                    "confidence": 0.84
+                }
+            ]
+        },
+        "noisy_audio.wav": {
+            "text": "This audio has background noise.",
+            "confidence": 0.72,
+            "language": "en",
+            "duration": 3.5,
+            "segments": [
+                {
+                    "start": 0.5,
+                    "end": 2.2,
+                    "text": "This audio has",
+                    "confidence": 0.78
+                },
+                {
+                    "start": 2.2,
+                    "end": 3.5,
+                    "text": " background noise.",
+                    "confidence": 0.66
+                }
+            ]
+        },
+        "long_sentence.wav": {
+            "text": "This is a longer sentence designed to test the transcription system with more complex audio content and multiple words that should be processed accurately by the model.",
+            "confidence": 0.89,
+            "language": "en",
+            "duration": 8.5,
+            "segments": [
+                {
+                    "start": 0.0,
+                    "end": 2.1,
+                    "text": "This is a longer sentence designed to test",
+                    "confidence": 0.91
+                },
+                {
+                    "start": 2.1,
+                    "end": 4.8,
+                    "text": " the transcription system with more complex audio content",
+                    "confidence": 0.87
+                },
+                {
+                    "start": 4.8,
+                    "end": 8.5,
+                    "text": " and multiple words that should be processed accurately by the model.",
+                    "confidence": 0.89
+                }
+            ]
+        }
+    },
+    "modelSpecificResults": {
+        "openai_whisper-tiny": {
+            "accuracyModifier": -0.1,
+            "speedMultiplier": 2.0,
+            "confidenceModifier": -0.05
+        },
+        "openai_whisper-base": {
+            "accuracyModifier": 0.0,
+            "speedMultiplier": 1.0,
+            "confidenceModifier": 0.0
+        },
+        "openai_whisper-small": {
+            "accuracyModifier": 0.05,
+            "speedMultiplier": 0.7,
+            "confidenceModifier": 0.03
+        },
+        "openai_whisper-large-v3": {
+            "accuracyModifier": 0.1,
+            "speedMultiplier": 0.4,
+            "confidenceModifier": 0.08
+        },
+        "mlx-community/whisper-large-v3-turbo": {
+            "accuracyModifier": 0.08,
+            "speedMultiplier": 1.5,
+            "confidenceModifier": 0.06
+        }
+    },
+    "errorScenarios": {
+        "corrupted_audio.wav": {
+            "error": "AudioDecodingFailed",
+            "description": "File is corrupted and cannot be decoded"
+        },
+        "unsupported_format.mp3": {
+            "error": "UnsupportedAudioFormat",
+            "description": "MP3 format not supported in test environment"
+        },
+        "empty_audio.wav": {
+            "error": "EmptyAudioFile",
+            "description": "Audio file contains no audio data"
+        },
+        "too_long_audio.wav": {
+            "error": "AudioTooLong",
+            "description": "Audio file exceeds maximum duration limit"
+        }
+    }
+}

@@ -1,62 +1,35 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Stack
+- macOS app with SwiftUI + The Composable Architecture (TCA)
+- WhisperKit ML transcription + MLX optimization (conditional)
+- AVAudioRecorder + Sauce hotkey monitoring
+- Swift Testing framework + model caching
 
-## Project Overview
-
-Vocorize is a macOS menu bar application that provides AI-powered voice-to-text transcription using OpenAI's Whisper models. Users activate transcription via customizable hotkeys, and the transcribed text can be automatically pasted into the active application.
-
-## Build & Development Commands
-
-```bash
-# Build the app
-xcodebuild -scheme Vocorize -configuration Release
-
-# Run tests
-xcodebuild test -scheme Vocorize -destination 'platform=macOS,arch=arm64'
-
-# Run tests with convenient script
-./test.sh
-
-# Open in Xcode (recommended for development)
-open Vocorize.xcodeproj
-```
+## Commands
+- `./test.sh` - All tests (auto-detects unit/integration)
+- `VocorizeTests/scripts/test-unit.sh` - Fast mock tests (10s)
+- `VocorizeTests/scripts/test-integration.sh` - Real ML tests with caching (30s-5min)
+- `xcodebuild -scheme Vocorize -configuration Release` - Build app
+- `open Vocorize.xcodeproj` - Xcode development
 
 ## Architecture
+- **TCA Features**: AppFeature → TranscriptionFeature/SettingsFeature/HistoryFeature
+- **Clients**: TranscriptionClient (WhisperKit) + RecordingClient + PasteboardClient + KeyEventMonitorClient
+- **Test Infrastructure**: MockWhisperKitProvider + CachedWhisperKitProvider + ModelCacheManager
+- **Dependencies**: WhisperKit + MLX/MLXNN (optional) + Sauce + Sparkle + TCA
 
-The app uses **The Composable Architecture (TCA)** for state management. Key architectural components:
-
-### Features (TCA Reducers)
-- `AppFeature`: Root feature coordinating the app lifecycle
-- `TranscriptionFeature`: Core recording and transcription logic
-- `SettingsFeature`: User preferences and configuration
-- `HistoryFeature`: Transcription history management
-
-### Dependency Clients
-- `TranscriptionClient`: WhisperKit integration for ML transcription
-- `RecordingClient`: AVAudioRecorder wrapper for audio capture
-- `PasteboardClient`: Clipboard operations
-- `KeyEventMonitorClient`: Global hotkey monitoring via Sauce framework
-
-### Key Dependencies
-- **WhisperKit**: Core ML transcription (tracking main branch)
-- **Sauce**: Keyboard event monitoring
-- **Sparkle**: Auto-updates (feed: https://vocorize-updates.s3.amazonaws.com/appcast.xml)
-- **Swift Composable Architecture**: State management
-- **Inject** Hot Reloading for SwiftUI
-
-## Important Implementation Details
-
-1. **Hotkey Recording Modes**: The app supports both press-and-hold and double-tap recording modes, implemented in `HotKeyProcessor.swift`
-
-2. **Model Management**: Whisper models are downloaded on-demand via `ModelDownloadFeature`. Available models are defined in `Resources/Data/models.json`
-
-3. **Sound Effects**: Audio feedback is provided via `SoundEffect.swift` using files in `Resources/Audio/`
-
-4. **Window Management**: Uses an `InvisibleWindow` for the transcription indicator overlay
-
-5. **Permissions**: Requires audio input and automation entitlements (see `Vocorize.entitlements`)
+## Business Logic
+- Hotkey activation: press-and-hold OR double-tap modes (`HotKeyProcessor.swift`)
+- Model download: on-demand via `ModelDownloadFeature` (specs in `Resources/Data/models.json`)
+- Audio feedback: `SoundEffect.swift` → `Resources/Audio/`
+- Overlay UI: `InvisibleWindow` for transcription indicator
+- Permissions: audio input + automation (see `Vocorize.entitlements`)
+- MLX: runtime detection prevents crashes on unsupported systems
 
 ## Testing
-
-Tests use Swift Testing framework. The main test file is `VocorizeTests/VocorizeTests.swift`. Run tests via Xcode or the command line.
+- **Environment**: `VOCORIZE_TEST_MODE=unit|integration`
+- **Cache**: `~/Library/Developer/Xcode/DerivedData/VocorizeTests/ModelCache/` (2GB limit, LRU cleanup)
+- **Providers**: Mock (instant) vs Cached (90%+ faster integration)
+- **Performance**: `VocorizeTests/scripts/performance-measurement.sh` for benchmarking
+- **Cache Management**: `./scripts/cache-manager.sh status|clean|verify`

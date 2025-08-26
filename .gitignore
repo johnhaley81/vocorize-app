@@ -15,7 +15,7 @@ ExportOptions.plist
 
 /commits.sh
 
-# Log files
+# Log files  
 *.log
 
 # Test results

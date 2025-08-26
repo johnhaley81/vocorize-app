@@ -1,0 +1,482 @@
+name: Release Validation Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+    branches:
+      - 'release/*'
+      
+  # Allow manual triggering for release candidates
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version (e.g., v1.2.3)'
+        required: true
+        type: string
+      skip_performance_tests:
+        description: 'Skip performance benchmarks'
+        required: false
+        default: false
+        type: boolean
+      validation_level:
+        description: 'Validation thoroughness'
+        required: false
+        default: 'complete'
+        type: choice
+        options:
+          - 'complete'
+          - 'essential'
+          - 'smoke-test'
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+  # Release validation mode - comprehensive testing
+  VOCORIZE_TEST_MODE: release
+  # Enable all model downloads and validations
+  VOCORIZE_RELEASE_VALIDATION: true
+  VOCORIZE_PERFORMANCE_BENCHMARKS: true
+
+jobs:
+  pre-release-checks:
+    name: Pre-Release Validation
+    runs-on: macos-15
+    timeout-minutes: 5
+    
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
+      is-prerelease: ${{ steps.extract-version.outputs.is-prerelease }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Extract Version Information
+      id: extract-version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.release_version }}"
+        else
+          VERSION=${GITHUB_REF#refs/tags/}
+        fi
+        
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+        # Check if this is a pre-release (contains alpha, beta, rc)
+        if echo "$VERSION" | grep -E "(alpha|beta|rc)" > /dev/null; then
+          echo "is-prerelease=true" >> $GITHUB_OUTPUT
+        else
+          echo "is-prerelease=false" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "🏷️ Release Version: $VERSION" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Validate Version Format
+      run: |
+        VERSION="${{ steps.extract-version.outputs.version }}"
+        
+        # Validate semantic version format
+        if ! echo "$VERSION" | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$" > /dev/null; then
+          echo "❌ Invalid version format: $VERSION"
+          echo "Expected format: v1.2.3 or v1.2.3-beta1"
+          exit 1
+        fi
+        
+        echo "✅ Version format valid: $VERSION"
+        
+    - name: Check Release Notes
+      run: |
+        # Check if CHANGELOG or release notes exist
+        if [ -f "CHANGELOG.md" ]; then
+          if grep -q "${{ steps.extract-version.outputs.version }}" CHANGELOG.md; then
+            echo "✅ Release notes found in CHANGELOG.md"
+          else
+            echo "⚠️ Release notes not found for this version"
+          fi
+        else
+          echo "⚠️ No CHANGELOG.md found"
+        fi
+        
+    - name: Validate Project Configuration
+      run: |
+        # Check version consistency in project files
+        if [ -f "Vocorize.xcodeproj/project.pbxproj" ]; then
+          echo "✅ Xcode project file exists"
+        fi
+        
+        if [ -f "Vocorize/Info.plist" ]; then
+          echo "✅ Info.plist exists"
+        fi
+
+  comprehensive-test-suite:
+    name: Comprehensive Release Testing
+    runs-on: macos-15
+    needs: pre-release-checks
+    timeout-minutes: 60
+    
+    strategy:
+      fail-fast: true
+      matrix:
+        test-category:
+          - name: "Core Unit Tests"
+            pattern: "VocorizeTests WhisperKitProviderTests TranscriptionProviderTests"
+            timeout: 10
+            critical: true
+          - name: "Integration Tests"
+            pattern: "WhisperKitIntegrationTests MLXIntegrationTests ProviderSystemIntegrationTests"
+            timeout: 35
+            critical: true
+          - name: "System Tests"
+            pattern: "MLXSystemCompatibilityTests TranscriptionClientProviderTests"
+            timeout: 15
+            critical: false
+            
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Select Xcode version
+      run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+      
+    - name: Cache Dependencies and Models
+      uses: actions/cache@v4
+      with:
+        path: |
+          .build
+          ~/Library/Developer/Xcode/DerivedData
+          ~/Library/Caches/whisperkit
+          ~/.cache/huggingface
+        key: ${{ runner.os }}-xcode162-spm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-xcode162-spm-
+          ${{ runner.os }}-release-
+          ${{ runner.os }}-nightly-spm-
+          ${{ runner.os }}-main-spm-
+          
+    - name: Setup Release Test Environment
+      run: |
+        # Prepare comprehensive test environment
+        mkdir -p ~/Library/Caches/whisperkit
+        mkdir -p ~/.cache/huggingface
+        
+        # Set release validation environment
+        echo "VOCORIZE_RELEASE_VERSION=${{ needs.pre-release-checks.outputs.version }}" >> $GITHUB_ENV
+        echo "VOCORIZE_IS_PRERELEASE=${{ needs.pre-release-checks.outputs.is-prerelease }}" >> $GITHUB_ENV
+        
+        # System resource check
+        echo "=== Release Test Environment ==="
+        system_profiler SPHardwareDataType
+        vm_stat
+        df -h
+        
+    - name: Run Test Category
+      timeout-minutes: ${{ matrix.test-category.timeout }}
+      run: |
+        set -o pipefail
+        
+        START_TIME=$(date +%s)
+        echo "🚀 Starting ${{ matrix.test-category.name }} tests..."
+        
+        # Build test filter from pattern
+        TEST_FILTERS=""
+        for test_suite in ${{ matrix.test-category.pattern }}; do
+          TEST_FILTERS="$TEST_FILTERS -only-testing:VocorizeTests/$test_suite"
+        done
+        
+        # Run the test category
+        xcodebuild test \
+          -project Vocorize.xcodeproj \
+          -scheme Vocorize \
+          -destination 'platform=macOS,arch=arm64' \
+          $TEST_FILTERS \
+          -test-timeouts-enabled NO \
+          CODE_SIGNING_ALLOWED=NO \
+          | xcpretty --color --report junit --output "release-test-${{ strategy.job-index }}.xml"
+          
+        END_TIME=$(date +%s)
+        DURATION=$((END_TIME - START_TIME))
+        
+        echo "✅ ${{ matrix.test-category.name }} completed in ${DURATION}s" >> $GITHUB_STEP_SUMMARY
+        echo "test_duration=$DURATION" >> $GITHUB_OUTPUT
+        
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: release-test-results-${{ strategy.job-index }}
+        path: |
+          release-test-*.xml
+        retention-days: 90
+        
+    - name: Fail on Critical Test Failure
+      if: failure() && matrix.test-category.critical == true
+      run: |
+        echo "❌ Critical test category '${{ matrix.test-category.name }}' failed"
+        echo "Release cannot proceed with critical test failures"
+        exit 1
+
+  performance-benchmarks:
+    name: Performance Benchmarks
+    runs-on: macos-15
+    needs: pre-release-checks
+    if: github.event.inputs.skip_performance_tests != 'true'
+    timeout-minutes: 45
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Select Xcode version
+      run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+      
+    - name: Cache Performance Models
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/Library/Caches/whisperkit
+          ~/.cache/huggingface
+        key: ${{ runner.os }}-perf-models-v1
+        restore-keys: |
+          ${{ runner.os }}-models-
+          
+    - name: Run Performance Benchmarks
+      run: |
+        echo "⚡ Running comprehensive performance benchmarks..."
+        
+        # Create benchmark results directory
+        mkdir -p benchmark-results
+        
+        # Run performance-focused tests
+        xcodebuild test \
+          -project Vocorize.xcodeproj \
+          -scheme Vocorize \
+          -destination 'platform=macOS,arch=arm64' \
+          -only-testing:VocorizeTests/WhisperKitProviderTests/testSuite_completesWithinPerformanceTarget \
+          -test-timeouts-enabled NO \
+          CODE_SIGNING_ALLOWED=NO \
+          | tee benchmark-results/performance-output.log
+          
+        # Extract performance metrics
+        if grep -q "Unit test performance" benchmark-results/performance-output.log; then
+          PERF_TIME=$(grep "Unit test performance" benchmark-results/performance-output.log | grep -o '[0-9]*\.[0-9]*')
+          echo "performance_time=$PERF_TIME" >> $GITHUB_OUTPUT
+          
+          # Performance regression check
+          THRESHOLD=10.0
+          if (( $(echo "$PERF_TIME > $THRESHOLD" | bc -l) )); then
+            echo "❌ Performance regression: ${PERF_TIME}s > ${THRESHOLD}s"
+            exit 1
+          else
+            echo "✅ Performance within target: ${PERF_TIME}s <= ${THRESHOLD}s"
+          fi
+        fi
+        
+    - name: Upload Performance Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-benchmarks
+        path: benchmark-results/
+        retention-days: 90
+
+  build-validation:
+    name: Build Validation
+    runs-on: macos-15
+    needs: [comprehensive-test-suite]
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Select Xcode version
+      run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+      
+    - name: Cache Build Dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          .build
+          ~/Library/Developer/Xcode/DerivedData
+        key: ${{ runner.os }}-xcode162-spm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-xcode162-spm-
+          ${{ runner.os }}-release-
+          
+    - name: Build Release Configuration
+      run: |
+        echo "🏗️ Building release configuration..."
+        
+        xcodebuild clean build \
+          -project Vocorize.xcodeproj \
+          -scheme Vocorize \
+          -destination 'platform=macOS,arch=arm64' \
+          -configuration Release \
+          CODE_SIGNING_ALLOWED=NO \
+          | xcpretty --color
+          
+    - name: Build Archive (if not pre-release)
+      if: needs.pre-release-checks.outputs.is-prerelease == 'false'
+      run: |
+        echo "📦 Creating release archive..."
+        
+        xcodebuild archive \
+          -project Vocorize.xcodeproj \
+          -scheme Vocorize \
+          -destination 'generic/platform=macOS' \
+          -archivePath "Vocorize.xcarchive" \
+          CODE_SIGNING_ALLOWED=NO
+          
+        # Verify archive was created
+        if [ -d "Vocorize.xcarchive" ]; then
+          echo "✅ Archive created successfully"
+          ls -la Vocorize.xcarchive/
+        else
+          echo "❌ Archive creation failed"
+          exit 1
+        fi
+        
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      if: needs.pre-release-checks.outputs.is-prerelease == 'false'
+      with:
+        name: release-archive
+        path: Vocorize.xcarchive
+        retention-days: 90
+
+  security-validation:
+    name: Security & Code Quality
+    runs-on: macos-15
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: SwiftLint Analysis
+      run: |
+        if ! command -v swiftlint &> /dev/null; then
+          brew install swiftlint
+        fi
+        
+        echo "🔍 Running SwiftLint analysis..."
+        swiftlint --strict --reporter github-actions-logging
+        
+    - name: Security Scan
+      run: |
+        echo "🛡️ Running security analysis..."
+        
+        # Scan for sensitive data
+        if find . -name "*.swift" -exec grep -l "password\|secret\|token\|private.*key" {} \; | head -5; then
+          echo "⚠️ Found potential sensitive data - manual review required"
+        else
+          echo "✅ No obvious sensitive data found"
+        fi
+        
+        # Check for unsafe operations
+        if find . -name "*.swift" -exec grep -l "unsafeBitCast\|unsafeDowncast\|Unmanaged" {} \; | head -5; then
+          echo "⚠️ Found unsafe Swift operations - manual review required"
+        else
+          echo "✅ No unsafe operations found"
+        fi
+        
+    - name: Dependency Audit
+      run: |
+        echo "📦 Auditing dependencies..."
+        
+        if [ -f "Vocorize.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" ]; then
+          echo "✅ Package.resolved found"
+          
+          # Count dependencies
+          DEP_COUNT=$(grep -c '"identity"' Vocorize.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved || echo "0")
+          echo "📊 Dependencies: $DEP_COUNT"
+          
+          # List major dependencies
+          echo "📋 Major dependencies:"
+          grep -A1 '"identity"' Vocorize.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved | grep '"identity"' | head -10
+        fi
+
+  release-readiness:
+    name: Release Readiness Assessment
+    runs-on: ubuntu-latest
+    needs: [pre-release-checks, comprehensive-test-suite, performance-benchmarks, build-validation, security-validation]
+    if: always()
+    timeout-minutes: 5
+    
+    steps:
+    - name: Assess Release Readiness
+      id: readiness-check
+      run: |
+        # Collect job statuses
+        PRE_CHECKS="${{ needs.pre-release-checks.result }}"
+        TESTS="${{ needs.comprehensive-test-suite.result }}"
+        PERFORMANCE="${{ needs.performance-benchmarks.result }}"
+        BUILD="${{ needs.build-validation.result }}"
+        SECURITY="${{ needs.security-validation.result }}"
+        
+        echo "## Release Readiness Report" >> $GITHUB_STEP_SUMMARY
+        echo "**Version**: ${{ needs.pre-release-checks.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Pre-release**: ${{ needs.pre-release-checks.outputs.is-prerelease }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Status | Critical |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Pre-release Checks | $PRE_CHECKS | ✅ |" >> $GITHUB_STEP_SUMMARY
+        echo "| Comprehensive Tests | $TESTS | ✅ |" >> $GITHUB_STEP_SUMMARY
+        echo "| Performance Benchmarks | $PERFORMANCE | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+        echo "| Build Validation | $BUILD | ✅ |" >> $GITHUB_STEP_SUMMARY
+        echo "| Security Validation | $SECURITY | ✅ |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Determine readiness
+        CRITICAL_FAILED=0
+        
+        if [[ "$PRE_CHECKS" != "success" ]]; then
+          echo "❌ Pre-release checks failed" >> $GITHUB_STEP_SUMMARY
+          CRITICAL_FAILED=1
+        fi
+        
+        if [[ "$TESTS" != "success" ]]; then
+          echo "❌ Comprehensive tests failed" >> $GITHUB_STEP_SUMMARY
+          CRITICAL_FAILED=1
+        fi
+        
+        if [[ "$BUILD" != "success" ]]; then
+          echo "❌ Build validation failed" >> $GITHUB_STEP_SUMMARY
+          CRITICAL_FAILED=1
+        fi
+        
+        if [[ "$SECURITY" != "success" ]]; then
+          echo "❌ Security validation failed" >> $GITHUB_STEP_SUMMARY
+          CRITICAL_FAILED=1
+        fi
+        
+        if [ $CRITICAL_FAILED -eq 0 ]; then
+          if [[ "$PERFORMANCE" == "success" || "$PERFORMANCE" == "skipped" ]]; then
+            echo "## ✅ **RELEASE APPROVED**" >> $GITHUB_STEP_SUMMARY
+            echo "All critical validation checks passed. Ready for release." >> $GITHUB_STEP_SUMMARY
+            echo "release_ready=true" >> $GITHUB_OUTPUT
+          else
+            echo "## ⚠️ **RELEASE APPROVED WITH WARNINGS**" >> $GITHUB_STEP_SUMMARY
+            echo "Critical checks passed, but performance benchmarks failed." >> $GITHUB_STEP_SUMMARY
+            echo "release_ready=warning" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "## ❌ **RELEASE BLOCKED**" >> $GITHUB_STEP_SUMMARY
+          echo "Critical validation failures prevent release." >> $GITHUB_STEP_SUMMARY
+          echo "release_ready=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+        
+    - name: Create Release Summary
+      if: steps.readiness-check.outputs.release_ready != 'false'
+      run: |
+        echo "🎉 Release ${{ needs.pre-release-checks.outputs.version }} validation complete!"
+        echo "Status: ${{ steps.readiness-check.outputs.release_ready }}"
+        echo ""
+        echo "Next steps:"
+        if [ "${{ needs.pre-release-checks.outputs.is-prerelease }}" == "true" ]; then
+          echo "- This is a pre-release version"
+          echo "- Can be published as beta/alpha release"
+        else
+          echo "- Ready for production release"
+          echo "- Archive artifact available for distribution"
+        fi
