@@ -123,9 +123,9 @@ actor TranscriptionClientLive {
     
     // Register MLX provider conditionally based on availability
     if MLXAvailability.isAvailable {
-      // MLX provider will be implemented in next issue
-      // For now, log that MLX is available for future registration
-      print("✅ MLX framework is available for future provider registration")
+      let mlxProvider = MLXProvider()
+      await factory.registerProvider(mlxProvider, for: .mlx)
+      print("✅ MLX provider registered successfully")
     } else {
       let compatInfo = MLXAvailability.compatibilityInfo
       let statusMessage = generateMLXStatusMessage(from: compatInfo)
